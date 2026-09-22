@@ -1,4 +1,4 @@
-name: AppFeedback
+name: LoveLetter
 options:
   bundleIdPrefix: com.amirhayek
   deploymentTarget:
@@ -13,31 +13,31 @@ packages:
   SwiftMail:
     url: https://github.com/Cocoanetics/SwiftMail
     from: 1.0.0
-  AppFeedbackSDK:
-    path: ../AppFeedbackSDK
+  LoveLetterSDK:
+    path: ../LoveLetterSDK
 
 targets:
-  AppFeedback:
+  LoveLetter:
     type: application
     platform: [iOS, macOS]
     deploymentTarget:
       iOS: "27.0"
       macOS: "27.0"
     sources:
-      - path: AppFeedback
+      - path: LoveLetter
         createIntermediateGroups: true
         excludes:
           - "Resources/Skill/**"
       # Folder reference so the directory structure survives into the bundle. xcodegen gives
       # .md files no build phase by default, so without this the skill silently wouldn't ship.
-      - path: AppFeedback/Resources/Skill
+      - path: LoveLetter/Resources/Skill
         buildPhase: resources
         type: folder
     dependencies:
       - package: SwiftMail
         product: SwiftMail
-      - package: AppFeedbackSDK
-        product: AppFeedbackCore
+      - package: LoveLetterSDK
+        product: LoveLetterCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amirhayek.AppFeedback
@@ -45,24 +45,24 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: NO
-        INFOPLIST_FILE: AppFeedback/Info.plist
-        CODE_SIGN_ENTITLEMENTS: AppFeedback/AppFeedback.entitlements
+        INFOPLIST_FILE: LoveLetter/Info.plist
+        CODE_SIGN_ENTITLEMENTS: LoveLetter/LoveLetter.entitlements
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: Q7U5734Q3T
 
-  AppFeedbackTests:
+  LoveLetterTests:
     type: bundle.unit-test
     platform: [iOS, macOS]
     deploymentTarget:
       iOS: "27.0"
       macOS: "27.0"
     sources:
-      - path: AppFeedbackTests
+      - path: LoveLetterTests
         createIntermediateGroups: true
     dependencies:
-      - target: AppFeedback_iOS
+      - target: LoveLetter_iOS
         platforms: [iOS]
-      - target: AppFeedback_macOS
+      - target: LoveLetter_macOS
         platforms: [macOS]
     settings:
       base:
@@ -73,27 +73,27 @@ targets:
         DEVELOPMENT_TEAM: Q7U5734Q3T
 
 schemes:
-  AppFeedback_iOS:
+  LoveLetter_iOS:
     build:
       targets:
-        AppFeedback_iOS: all
-        AppFeedbackTests_iOS: [test]
+        LoveLetter_iOS: all
+        LoveLetterTests_iOS: [test]
     test:
       targets:
-        - AppFeedbackTests_iOS
+        - LoveLetterTests_iOS
     run:
       config: Debug
     archive:
       config: Release
 
-  AppFeedback_macOS:
+  LoveLetter_macOS:
     build:
       targets:
-        AppFeedback_macOS: all
-        AppFeedbackTests_macOS: [test]
+        LoveLetter_macOS: all
+        LoveLetterTests_macOS: [test]
     test:
       targets:
-        - AppFeedbackTests_macOS
+        - LoveLetterTests_macOS
     run:
       config: Debug
     archive:

@@ -4,7 +4,7 @@
 # first runtime fetch completes.
 set -euo pipefail
 
-OUT="${1:-AppFeedback/AppleDevices.json}"
+OUT="${1:-LoveLetter/AppleDevices.json}"
 TMP="$(mktemp -t appledb.XXXXXX).json"
 
 mkdir -p "$(dirname "$OUT")"

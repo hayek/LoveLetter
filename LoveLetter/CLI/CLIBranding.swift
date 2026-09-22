@@ -1,0 +1,49 @@
+import Foundation
+
+/// Single source of truth for every user-visible CLI name. The product name is
+/// temporary — renaming later should touch this file and nothing else.
+enum CLIBranding {
+    static let commandName = "loveletter"
+    static let skillFolderName = "loveletter"
+    // Persisted under the pre-rename name; do not change. The bundle identifier is the app's
+    // signing/iCloud identity, and the IPC prefix is derived from it.
+    static let ipcPrefix = "com.amirhayek.AppFeedback.cli"
+    static let bundleIdentifier = "com.amirhayek.AppFeedback"
+
+    /// Names shipped before the rename to Love Letter. The installer removes links it finds
+    /// under these names that point at one of our app bundles, so upgrading users don't keep a
+    /// stale `appfeedback` command or skill pointing at the old binary.
+    static let legacyCommandNames = ["appfeedback"]
+    static let legacySkillFolderNames = ["appfeedback"]
+    /// The executable name inside the pre-rename `AppFeedback.app`.
+    static let legacyExecutableNames = ["AppFeedback"]
+
+    static var requestNotification: String { "\(ipcPrefix).request" }
+    static var responseNotification: String { "\(ipcPrefix).response" }
+
+    #if os(macOS)
+    /// The app bundle, resolved through any symlink.
+    ///
+    /// `Bundle.main` is wrong when the binary is exec'd via the installed
+    /// `~/.local/bin/loveletter` symlink: the process path is the symlink, so Bundle.main
+    /// points at that directory and finds no Info.plist (version reads as "?").
+    ///
+    /// `Bundle.main.executablePath` is the path actually exec'd — the symlink — and resolving
+    /// it lands on `…/LoveLetter.app/Contents/MacOS/LoveLetter`, three levels below the
+    /// bundle. argv[0] is NOT usable here: a PATH lookup passes just the bare command name.
+    static var appBundle: Bundle {
+        let candidates = [Bundle.main.executablePath, CommandLine.arguments.first]
+            .compactMap { $0 }
+            .filter { $0.contains("/") }
+        for path in candidates {
+            let bundleURL = URL(filePath: path)
+                .resolvingSymlinksInPath()
+                .deletingLastPathComponent()      // MacOS
+                .deletingLastPathComponent()      // Contents
+                .deletingLastPathComponent()      // .app
+            if bundleURL.pathExtension == "app", let bundle = Bundle(url: bundleURL) { return bundle }
+        }
+        return .main
+    }
+    #endif
+}

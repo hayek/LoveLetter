@@ -1,0 +1,51 @@
+import Foundation
+
+final class NotifiedIssueStore {
+    static func issueKey(owner: String, repo: String, number: Int) -> String {
+        "\(owner)/\(repo)#\(number)"
+    }
+
+    private let defaults: UserDefaults
+    private let cap: Int
+    // UserDefaults key. Persisted under the pre-rename name; do not change.
+    private let key = "appfeedback.notifiedIssueIDs"
+    private var cache: Set<String>?
+
+    init(defaults: UserDefaults = .standard, cap: Int = 5_000) {
+        self.defaults = defaults
+        self.cap = cap
+    }
+
+    func contains(_ id: String) -> Bool {
+        loadCache().contains(id)
+    }
+
+    func insert(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        var ordered = loadOrdered()
+        let existing = loadCache()
+        for id in ids where !existing.contains(id) {
+            ordered.append(id)
+        }
+        if ordered.count > cap {
+            ordered.removeFirst(ordered.count - cap)
+        }
+        defaults.set(ordered, forKey: key)
+        cache = Set(ordered)
+    }
+
+    func snapshot(_ ids: [String]) {
+        insert(ids)
+    }
+
+    private func loadOrdered() -> [String] {
+        defaults.array(forKey: key) as? [String] ?? []
+    }
+
+    private func loadCache() -> Set<String> {
+        if let cache { return cache }
+        let c = Set(loadOrdered())
+        cache = c
+        return c
+    }
+}

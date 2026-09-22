@@ -1,0 +1,117 @@
+import XCTest
+import LoveLetterCore
+@testable import LoveLetter
+
+final class SourceContractTests: XCTestCase {
+
+    func test_shim_reads_app_store_source_and_rating() {
+        let block = LoveLetterCore.IssueBodyFormatter.sourceMetadataBlock(
+            source: "app-store", rating: 3, reviewerNickname: "Sam", territory: "USA",
+            reviewId: "rv-7", reviewCreatedAt: nil, fromAddress: nil, messageId: nil
+        )
+        let parsed = LoveLetter.IssueBodyParser.parse("Great app\n\n" + block)
+        XCTAssertEqual(parsed.source, "app-store")
+        XCTAssertEqual(parsed.rating, 3)
+        XCTAssertEqual(parsed.reviewId, "rv-7")
+    }
+
+    func test_shim_reads_email_source() {
+        let block = LoveLetterCore.IssueBodyFormatter.sourceMetadataBlock(
+            source: "email", rating: nil, reviewerNickname: nil, territory: nil,
+            reviewId: nil, reviewCreatedAt: nil, fromAddress: "a@b.com", messageId: "<m1>"
+        )
+        let parsed = LoveLetter.IssueBodyParser.parse(block)
+        XCTAssertEqual(parsed.source, "email")
+        XCTAssertEqual(parsed.fromAddress, "a@b.com")
+        XCTAssertEqual(parsed.messageId, "<m1>")
+        XCTAssertNil(parsed.rating)
+    }
+
+    func test_legacy_body_has_nil_source() {
+        let parsed = LoveLetter.IssueBodyParser.parse("Plain SDK feedback.\n\n---\n👍 Votes: 0")
+        XCTAssertNil(parsed.source)
+        XCTAssertNil(parsed.rating)
+    }
+
+    func test_cachedIssue_roundtrips_source_rating() {
+        let issue = FeedbackIssue(
+            number: 1, title: "T", createdAt: Date(), rawBody: "b",
+            appName: nil, appVersion: nil, device: nil, osVersion: nil, email: nil,
+            description: "d", labels: [], source: .appStore, rating: 5
+        )
+        let cached = CachedIssue.from(issue, repoOwner: "o", repoName: "r")
+        XCTAssertEqual(cached.source, "app-store")
+        XCTAssertEqual(cached.rating, 5)
+        let back = cached.toFeedbackIssue()
+        XCTAssertEqual(back.source, .appStore)
+        XCTAssertEqual(back.rating, 5)
+    }
+
+    /// An App Store card already shows its source (the Apple glyph) and rating (the stars) in the
+    /// header, so repeating them as raw `source:`/`rating:` chips is noise that no other feedback
+    /// source carries. The clipboard's own list keeps them.
+    func test_cardChips_dropSourceAndRatingMarkers() {
+        let labels = [
+            IssueLabel(name: "source:app-store", colorHex: "ededed"),
+            IssueLabel(name: "rating:5", colorHex: "ededed"),
+            IssueLabel(name: "user-submitted", colorHex: "ededed"),
+            IssueLabel(name: "needs-triage", colorHex: "d93f0b"),
+        ]
+        XCTAssertEqual(labels.cardChips.map(\.name), ["needs-triage"])
+        XCTAssertEqual(labels.withoutTypeAndUserSubmitted.map(\.name),
+                       ["source:app-store", "rating:5", "needs-triage"],
+                       "the clipboard's label list is unchanged")
+    }
+
+    /// Rows cached before the review-date fix carry the import time in `createdAt`. Reading them
+    /// back must prefer the `reviewCreatedAt` marker in the stored body, so existing caches heal
+    /// without waiting for the next full reconcile.
+    func test_cachedAppStoreIssue_readsReviewDateFromStoredBody() {
+        let review = ASCReview.make(id: "R1", rating: 4, title: "T", body: "B",
+                                    created: Date(timeIntervalSince1970: 1_700_000_000))
+        let importedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let issue = FeedbackIssue(
+            number: 1, title: "T", createdAt: importedAt,
+            rawBody: AppStoreReviewSynthesizer.body(for: review),
+            appName: nil, appVersion: nil, device: nil, osVersion: nil, email: nil,
+            description: "B", labels: [], source: .appStore, rating: 4
+        )
+        let cached = CachedIssue.from(issue, repoOwner: "o", repoName: "r")
+        cached.createdAt = importedAt          // simulate a row written before the fix
+        XCTAssertEqual(cached.toFeedbackIssue().createdAt, Date(timeIntervalSince1970: 1_700_000_000))
+    }
+
+    func test_cachedIssue_legacy_nil_source_maps_to_sdk() {
+        let issue = FeedbackIssue(
+            number: 2, title: "T", createdAt: Date(), rawBody: "b",
+            appName: nil, appVersion: nil, device: nil, osVersion: nil, email: nil,
+            description: "d", labels: []
+        )
+        let cached = CachedIssue.from(issue, repoOwner: "o", repoName: "r")
+        cached.source = nil          // simulate a legacy row cached before Phase 1
+        cached.rating = nil
+        XCTAssertEqual(cached.toFeedbackIssue().source, .sdk)
+        XCTAssertNil(cached.toFeedbackIssue().rating)
+    }
+
+    func test_source_resolution_marker_wins_then_label_then_sdk() {
+        // marker present
+        XCTAssertEqual(
+            IssueLoader.resolveSource(markerSource: "email", labels: ["source:app-store"]),
+            .email
+        )
+        // no marker → label fallback
+        XCTAssertEqual(
+            IssueLoader.resolveSource(markerSource: nil, labels: ["source:app-store"]),
+            .appStore
+        )
+        // neither → sdk
+        XCTAssertEqual(IssueLoader.resolveSource(markerSource: nil, labels: ["bug"]), .sdk)
+    }
+
+    func test_rating_resolution_marker_wins_then_label() {
+        XCTAssertEqual(IssueLoader.resolveRating(markerRating: 4, labels: ["rating:2"]), 4)
+        XCTAssertEqual(IssueLoader.resolveRating(markerRating: nil, labels: ["rating:2"]), 2)
+        XCTAssertNil(IssueLoader.resolveRating(markerRating: nil, labels: ["bug"]))
+    }
+}
