@@ -63,6 +63,8 @@ struct IssueCardView: View {
     var onToggleOSVersion: ((String) -> Void)? = nil
     var activeIssueType: Set<IssueType> = []
     var onToggleIssueType: ((IssueType) -> Void)? = nil
+    var activeTags: Set<String> = []
+    var onToggleTag: ((String) -> Void)? = nil
     var targetLanguageCode: String = "en"
     var isTranslating: Bool = false
     var isHighlighted: Bool = false
@@ -314,7 +316,9 @@ struct IssueCardView: View {
                                     )
                                 }
                                 ForEach(issue.labels.cardChips, id: \.name) { label in
-                                    LabelChipView(label: label)
+                                    tappable(value: label.name, onTap: onToggleTag) {
+                                        LabelChipView(label: label, isActive: activeTags.contains(label.name))
+                                    }
                                 }
                                 if let version = issue.appVersion {
                                     tappable(value: version, onTap: onToggleAppVersion) {
@@ -698,6 +702,7 @@ private struct TaskTagView: View {
 
 private struct LabelChipView: View {
     let label: IssueLabel
+    var isActive = false
 
     var body: some View {
         let color = Color(hex: label.colorHex)
@@ -707,7 +712,11 @@ private struct LabelChipView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(color, in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(color.opacity(0.5), lineWidth: 0.5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isActive ? color.contrastingForeground.opacity(0.7) : color.opacity(0.5),
+                            lineWidth: isActive ? 1.5 : 0.5)
+            )
     }
 }
 

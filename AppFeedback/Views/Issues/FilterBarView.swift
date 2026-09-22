@@ -19,6 +19,13 @@ struct FilterBarView: View {
                     accent: accent
                 )
                 MultiSelectFilterChip(
+                    label: "Tag",
+                    values: viewModel.uniqueTags,
+                    selection: binding(for: \.tags),
+                    display: { $0 },
+                    accent: accent
+                )
+                MultiSelectFilterChip(
                     label: "Version",
                     values: viewModel.uniqueVersions,
                     selection: binding(for: \.appVersion),

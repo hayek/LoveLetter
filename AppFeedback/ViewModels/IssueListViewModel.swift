@@ -46,6 +46,8 @@ final class IssueListViewModel {
         var device: Set<String> = []
         var osVersion: Set<String> = []
         var issueType: Set<IssueType> = []
+        /// Selected label names (the card's label chips, e.g. "codex-beta"). Matches any-of.
+        var tags: Set<String> = []
         /// Selected sources. Default = all-on. A full set (all cases) means "no
         /// source filter" — equivalent to empty for `isEmpty`/`visibleIssues`.
         var sources: Set<FeedbackSource> = Set(FeedbackSource.allCases)
@@ -59,7 +61,7 @@ final class IssueListViewModel {
 
         var isEmpty: Bool {
             appVersion.isEmpty && device.isEmpty && osVersion.isEmpty
-                && issueType.isEmpty && !sourcesActive
+                && issueType.isEmpty && tags.isEmpty && !sourcesActive
         }
     }
 
@@ -70,6 +72,9 @@ final class IssueListViewModel {
         if !filters.device.isEmpty     { list = list.filter { filters.device.contains($0.device ?? "") } }
         if !filters.osVersion.isEmpty  { list = list.filter { filters.osVersion.contains($0.osVersion ?? "") } }
         if !filters.issueType.isEmpty  { list = list.filter { ($0.labels.issueType?.type).map { filters.issueType.contains($0) } ?? false } }
+        if !filters.tags.isEmpty {
+            list = list.filter { $0.labels.cardChips.contains { filters.tags.contains($0.name) } }
+        }
         if !filters.sources.isEmpty && filters.sources != Set(FeedbackSource.allCases) {
             list = list.filter { filters.sources.contains($0.source) }
         }
@@ -103,6 +108,12 @@ final class IssueListViewModel {
             .sorted { $0.compare($1, options: .numeric) == .orderedDescending }
     }
 
+    /// Distinct label names shown as chips on this product's feedback cards, alphabetical.
+    var uniqueTags: [String] {
+        Array(Set(allIssues.flatMap { $0.labels.cardChips.map(\.name) }))
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
     /// Distinct sources present in this product's feedback, in canonical case order.
     var uniqueSources: [FeedbackSource] {
         let present = Set(allIssues.map(\.source))
@@ -117,7 +128,7 @@ final class IssueListViewModel {
     var persistedFeedbackFilters: PersistedFeedbackFilters {
         PersistedFeedbackFilters(appVersion: filters.appVersion, device: filters.device,
                                  osVersion: filters.osVersion, issueType: filters.issueType,
-                                 sources: filters.sources)
+                                 tags: filters.tags, sources: filters.sources)
     }
 
     func applyFeedbackFilters(_ dto: PersistedFeedbackFilters) {
@@ -125,6 +136,7 @@ final class IssueListViewModel {
         filters.device = dto.device
         filters.osVersion = dto.osVersion
         filters.issueType = dto.issueType
+        filters.tags = dto.tags
         filters.sources = dto.sources
     }
 

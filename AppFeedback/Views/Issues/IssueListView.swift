@@ -362,6 +362,10 @@ struct IssueListView: View {
             onToggleIssueType: { type in
                 viewModel.filters.issueType.toggleMembership(type)
             },
+            activeTags: viewModel.filters.tags,
+            onToggleTag: { name in
+                viewModel.filters.tags.toggleMembership(name)
+            },
             targetLanguageCode: targetLanguageCode,
             isTranslating: viewModel.isTranslating(issue),
             isHighlighted: viewModel.highlightedIssueNumber == issue.number,

@@ -479,6 +479,36 @@ extension IssueListViewModelTests {
     }
 
     @MainActor
+    func test_tag_filter_matches_any_selected_label_chip() {
+        let vm = IssueListViewModel()
+        func labeled(_ n: Int, _ names: [String]) -> FeedbackIssue {
+            FeedbackIssue(number: n, title: "t\(n)", createdAt: Date(), rawBody: "",
+                appName: nil, appVersion: nil, device: nil, osVersion: nil, email: nil,
+                description: "", labels: names.map { IssueLabel(name: $0, colorHex: "22aa66") })
+        }
+        vm.allIssues = [
+            labeled(1, ["codex-beta", "bug"]),
+            labeled(2, ["claude-beta"]),
+            labeled(3, ["user-submitted", "source:app-store"]),
+        ]
+
+        // Only card chips are offered — type, user-submitted and source: markers are not tags.
+        XCTAssertEqual(vm.uniqueTags, ["claude-beta", "codex-beta"])
+
+        vm.filters.tags = ["codex-beta"]
+        XCTAssertFalse(vm.filters.isEmpty)
+        XCTAssertEqual(vm.visibleIssues.map(\.number), [1])
+
+        vm.filters.tags = ["codex-beta", "claude-beta"]
+        XCTAssertEqual(Set(vm.visibleIssues.map(\.number)), [1, 2])
+
+        XCTAssertEqual(vm.persistedFeedbackFilters.tags, ["codex-beta", "claude-beta"])
+        let vm2 = IssueListViewModel()
+        vm2.applyFeedbackFilters(PersistedFeedbackFilters(tags: ["claude-beta"]))
+        XCTAssertEqual(vm2.filters.tags, ["claude-beta"])
+    }
+
+    @MainActor
     func test_source_filter_persists_and_applies() {
         let vm = IssueListViewModel()
         vm.filters.sources = [.email]
