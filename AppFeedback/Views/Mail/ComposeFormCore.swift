@@ -195,6 +195,17 @@ struct ComposeFormCore: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!vm.canSend)
+                .help("Send (⌘↩)")
+                .background {
+                    // Return is swallowed by the body TextEditor (it inserts a newline), so
+                    // ⌘↩ sends from inside the editor. A button holds only one shortcut, hence
+                    // this invisible twin sharing the same action and enablement.
+                    Button(sendLabel) { onSend() }
+                        .keyboardShortcut(.return, modifiers: .command)
+                        .disabled(!vm.canSend)
+                        .opacity(0)
+                        .accessibilityHidden(true)
+                }
         }
         .padding(12)
     }
