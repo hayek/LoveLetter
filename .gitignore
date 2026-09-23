@@ -6,3 +6,4 @@ DerivedData/
 .claude/
 skills-lock.json
 build/
+dist/

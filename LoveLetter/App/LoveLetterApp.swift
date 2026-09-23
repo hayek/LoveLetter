@@ -71,6 +71,8 @@ struct LoveLetterApp: App {
     @State private var issueLoaderRegistry: IssueLoaderRegistry
     #if os(macOS)
     @State private var cliResponder: CLIRequestResponder
+    /// Self-updater; nil unless this is the direct-download flavor running live.
+    @State private var appUpdateController: AppUpdateController?
     #endif
     @State private var mailLocalStateStore: MailAccountLocalStateStore
     @State private var mailDraftStore = MailDraftStore()
@@ -332,6 +334,12 @@ struct LoveLetterApp: App {
         // Never from a test host: it would re-point (or migrate away) the user's real links in
         // ~/.local/bin and ~/.claude/skills to a throwaway DerivedData build.
         if launchMode == .live { CLIInstaller.refreshInstalledLinks() }
+
+        // App Store builds update through the store, so they never get an updater.
+        let updates = launchMode == .live && DistributionFlavor.current.usesInAppUpdater
+            ? AppUpdateController(defaults: settingsDefaultsLocal) : nil
+        updates?.start()
+        _appUpdateController = State(initialValue: updates)
         #endif
 
         #if os(iOS)
@@ -380,6 +388,9 @@ struct LoveLetterApp: App {
             .environment(thumbnailCache)
             .environment(feedbackAttachmentDownloaderHolder)
             .environment(\.isMockDataMode, isMockDataMode)
+            #if os(macOS)
+            .environment(\.appUpdateController, appUpdateController)
+            #endif
             // @AppStorage keys (e.g. `summary.collapsed.*`) stay in the mock suite in mock mode.
             .defaultAppStorage(settingsDefaults)
             #if DEBUG
@@ -397,6 +408,9 @@ struct LoveLetterApp: App {
             )
                 #if DEBUG
                 .screenshotMode()
+                #endif
+                #if os(macOS)
+                .updateReadyAlert(appUpdateController)
                 #endif
                 .task { if !isMockDataMode { await notificationService.requestAuthorizationIfNeeded() } }
                 .task(id: store.repos.map(\.id)) {
@@ -447,6 +461,11 @@ struct LoveLetterApp: App {
         .modelContainer(container)
         #if os(macOS)
         .commands {
+            CommandGroup(after: .appInfo) {
+                if let appUpdateController {
+                    CheckForUpdatesCommand(updates: appUpdateController, navigation: settingsNavigation)
+                }
+            }
             CommandGroup(after: .windowList) {
                 ActivityMenuCommand()
             }

@@ -11,6 +11,8 @@ enum SettingsSelection: Hashable {
     case intelligence
     case notifications
     case cli
+    /// Direct-download build only (see `DistributionFlavor`).
+    case updates
     /// DEBUG-only pane; the row and detail are fenced, the case itself is harmless in Release.
     case debug
 
@@ -57,6 +59,9 @@ struct SettingsView: View {
     @Environment(NotificationSettings.self) private var notificationSettings
     @Environment(\.notificationService) private var notificationService
     @Environment(SettingsNavigation.self) private var navigation
+    #if os(macOS)
+    @Environment(\.appUpdateController) private var appUpdateController
+    #endif
     #if os(iOS)
     @Environment(\.dismiss) private var dismiss
     #endif
@@ -117,6 +122,10 @@ struct SettingsView: View {
                     }
                     SettingsIconRow(title: "CLI & AI Skill", systemImage: "terminal.fill", tileColor: .gray)
                         .tag(SettingsSelection.cli)
+                    if appUpdateController != nil {
+                        SettingsIconRow(title: "Updates", systemImage: "arrow.down.circle.fill", tileColor: .green)
+                            .tag(SettingsSelection.updates)
+                    }
                 }
                 #if DEBUG
                 if !ScreenshotMode.isActive {
@@ -179,6 +188,10 @@ struct SettingsView: View {
             }
         case .cli:
             CLISettingsView()
+        case .updates:
+            if let appUpdateController {
+                UpdatesSettingsView(updates: appUpdateController)
+            }
         case .debug:
             #if DEBUG
             DebugSettingsView()

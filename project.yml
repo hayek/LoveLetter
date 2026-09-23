@@ -15,6 +15,10 @@ packages:
     from: 1.0.0
   LoveLetterSDK:
     path: ../LoveLetterSDK
+  # In-app updater for the direct-download (non-App Store) Mac build — same as Zcode.
+  AppUpdater:
+    url: https://github.com/s1ntoneli/AppUpdater
+    from: 0.2.0
 
 targets:
   LoveLetter:
@@ -38,9 +42,16 @@ targets:
         product: SwiftMail
       - package: LoveLetterSDK
         product: LoveLetterCore
+      - package: AppUpdater
+        product: AppUpdater
+        platforms: [macOS]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amirhayek.AppFeedback
+        # Distribution flavor, surfaced to the app as Info.plist `LLDistributionFlavor`.
+        # `appstore` (default) never self-updates; Scripts/release.sh builds the website
+        # download with DISTRIBUTION_FLAVOR=direct, which turns on the GitHub-releases updater.
+        DISTRIBUTION_FLAVOR: appstore
         SWIFT_VERSION: "5.9"
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
