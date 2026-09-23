@@ -43,8 +43,8 @@ struct CLISettingsView: View {
                      + "Claude Code or another coding agent, opened in that project. The agent walks "
                      + "you through it step by step: it finds the platform, creates or picks the "
                      + "GitHub repository feedback goes to (asking you where), installs the SDK "
-                     + "(Swift Package Manager, Gradle or npm), adds a Send Feedback entry, and "
-                     + "checks that a test report arrives.")
+                     + "(Swift Package Manager, Gradle or npm), adds a Send Feedback entry, "
+                     + "checks that a test report arrives, and adds the product to Love Letter.")
                     .font(.footnote).foregroundStyle(.secondary)
                 HStack {
                     Button(promptCopied ? "Copied" : "Copy Integration Prompt",

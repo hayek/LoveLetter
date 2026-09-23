@@ -1,8 +1,9 @@
 import Foundation
 
 /// A prompt the developer pastes into an AI coding agent (Claude Code, Codex, Cursor…) opened in
-/// their app's project. It drives an interactive session that adds a Love Letter SDK to the app
-/// and sets up the GitHub repository the feedback lands in.
+/// their app's project. It drives an interactive session that adds a Love Letter SDK to the app,
+/// sets up the GitHub repository the feedback lands in, and adds that repository to Love Letter
+/// as a product through the `loveletter` CLI.
 enum SDKIntegrationPrompt {
     /// The prompt for a product that's already set up in Love Letter: the repository is decided,
     /// so the agent skips choosing or creating one and wires the SDK straight to it.
@@ -10,7 +11,8 @@ enum SDKIntegrationPrompt {
         """
         The feedback repository is already chosen and added to Love Letter: \
         `\(owner)/\(repo)`. Use it — skip creating or choosing a repository in section 2 (still \
-        make sure its labels exist), and skip adding it to Love Letter in section 6.
+        make sure its labels exist), and skip adding the product to Love Letter in section 6 \
+        (it's already there); just hand off.
 
 
         """ + text
@@ -45,6 +47,8 @@ enum SDKIntegrationPrompt {
     --description "User feedback for <App>"`; run `gh auth status` first). If neither works, \
     give me the exact steps to create it on github.com and wait until I confirm.
     Then make sure the labels `bug`, `feature-request` and `user-submitted` exist (the SDK applies them).
+    Love Letter reads this repository through a GitHub account connected in the app, so pick an \
+    owner that account can access (you'll add the product to Love Letter in section 6).
 
     ## 3. Credentials
     ASK how submissions should reach GitHub:
@@ -96,10 +100,29 @@ enum SDKIntegrationPrompt {
     app, and confirm the issue appeared in the repository (`gh issue list -R <owner>/<repo>` or \
     the MCP server). Offer to close the test issue.
 
-    ## 6. Hand off
-    Tell me what changed and where the secret lives, and remind me to add the repository to Love \
-    Letter: Settings > Products > + (owner and repository name) so the feedback shows up in my \
-    inbox. If this is a git repository, offer to commit the integration — stage only the files \
-    you changed.
+    ## 6. Add the product to Love Letter and hand off
+    The feedback only reaches my inbox once the repository is a product in Love Letter. Add it \
+    yourself with the `loveletter` CLI:
+    - Find it: `command -v loveletter`, else `~/.local/bin/loveletter`. If neither exists, skip \
+    to the fallback below.
+    - Run `loveletter products`. If a product already uses `<owner>/<repo>`, it's done — skip \
+    to the hand-off. Exit code 6 means Love Letter isn't running: ask me to open it, then retry.
+    - ASK what to call the product (suggest the app's display name), then run \
+    `loveletter products add --repo <owner>/<repo> --name "<App Name>"`. With no token flag, \
+    Love Letter uses a GitHub account connected in the app that can see the repository.
+    - If that fails because no connected account can see it (exit code 4, or a `missing_flag` \
+    error), the product needs a token with Issues: Read and write on the repository. With my \
+    OK, pipe one in on stdin — never as an argument and never echoed: the token from section 3 \
+    read straight from where it's stored, or `gh auth token | loveletter products add --repo \
+    <owner>/<repo> --name "<App Name>" --token-stdin`. The token is kept in my Keychain.
+    - Check the JSON it prints (`repo`, `id`), and read any `error.hint` before retrying. \
+    `loveletter products --help` lists the other options (color, App Store reviews, a feedback \
+    email inbox) if I want them.
+    Fallback, when the CLI isn't installed: tell me to install it from Love Letter → Settings → \
+    CLI & AI Skill → Install and re-run this step, or add the product by hand: Settings → \
+    Products → + (pick or enter `<owner>/<repo>`).
+
+    Then tell me what changed, where the secret lives, and whether the product was added. If \
+    this is a git repository, offer to commit the integration — stage only the files you changed.
     """
 }
