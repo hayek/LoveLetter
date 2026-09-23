@@ -5,6 +5,8 @@ struct CLISettingsView: View {
     @State private var cliStatus = CLIInstaller.cliStatus()
     @State private var skillStatus = CLIInstaller.skillStatus()
     @State private var errorMessage: String?
+    @State private var promptCopied = false
+    @State private var showsPrompt = false
 
     var body: some View {
         Form {
@@ -34,6 +36,33 @@ struct CLISettingsView: View {
                      + "For another AI tool, reveal the folder and copy it wherever that tool "
                      + "expects its skills.")
                     .font(.footnote).foregroundStyle(.secondary)
+            }
+
+            Section("SDK Integration") {
+                Text("Add Love Letter feedback to one of your apps or sites. Copy this prompt into "
+                     + "Claude Code or another coding agent, opened in that project. The agent walks "
+                     + "you through it step by step: it finds the platform, creates or picks the "
+                     + "GitHub repository feedback goes to (asking you where), installs the SDK "
+                     + "(Swift Package Manager, Gradle or npm), adds a Send Feedback entry, and "
+                     + "checks that a test report arrives.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                HStack {
+                    Button(promptCopied ? "Copied" : "Copy Integration Prompt",
+                           systemImage: promptCopied ? "checkmark" : "doc.on.doc",
+                           action: copyPrompt)
+                    Spacer()
+                    Button(showsPrompt ? "Hide Prompt" : "Show Prompt") { showsPrompt.toggle() }
+                        .buttonStyle(.link)
+                }
+                if showsPrompt {
+                    ScrollView {
+                        Text(SDKIntegrationPrompt.text)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 240)
+                }
             }
 
             if let errorMessage {
@@ -88,6 +117,17 @@ struct CLISettingsView: View {
                          + "Create ~/.local/bin and try again."
         }
         refresh()
+    }
+
+    private func copyPrompt() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(SDKIntegrationPrompt.text, forType: .string)
+        promptCopied = true
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            promptCopied = false
+        }
     }
 
     private func installSkill() {
