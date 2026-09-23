@@ -7,6 +7,8 @@ struct AddEditRepoView: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var store: ProductStore
     @Environment(GitHubAccountStore.self) private var accountStore
+    /// Mock-data mode: GitHub sign-in is off, so no real OAuth token is created or stored.
+    @Environment(\.isMockDataMode) private var isMockDataMode
 
     var existing: ProductConfig?
     var embedInNavigation: Bool = true
@@ -93,6 +95,14 @@ struct AddEditRepoView: View {
                             .padding(.vertical, 4)
                         }
                         .buttonStyle(.borderedProminent)
+                        .disabled(isMockDataMode)
+                        .help(isMockDataMode ? "GitHub sign-in is off while using mock data." : "")
+                        if isMockDataMode {
+                            Text("GitHub sign-in is off while using mock data. Turn off mock data in Settings ▸ Debug and relaunch to sign in.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     } else {
                         AccountRepoPicker(
                             accounts: accountStore.accounts,
@@ -106,7 +116,7 @@ struct AddEditRepoView: View {
                                 token = accountStore.token(for: account) ?? ""
                                 redactEmailAddresses = !ghRepo.isPrivate
                             },
-                            onConnectAnother: { showGitHubLogin = true }
+                            onConnectAnother: { if !isMockDataMode { showGitHubLogin = true } }
                         )
                     }
 
