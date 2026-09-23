@@ -67,6 +67,11 @@ actor AttachmentDownloader {
     /// connection — not a single fixed (default) one. `nil` resolves to the default account.
     private let clientForAccount: @Sendable (UUID?) -> IMAPClientProtocol
     private let localStore: MailAttachmentLocalStore
+    /// Downloads in progress, keyed by (messageID, partID). Opening a thread asks for the same
+    /// attachment from several views at once; without this, every caller passes the "already
+    /// downloaded?" check before the first has recorded its file — the actor is re-entrant at
+    /// each await — and each writes its own `name (1).png` copy.
+    private var inFlight: [String: Task<URL, Error>] = [:]
 
     init(clientForAccount: @escaping @Sendable (UUID?) -> IMAPClientProtocol, localStore: MailAttachmentLocalStore) {
         self.clientForAccount = clientForAccount
@@ -98,6 +103,32 @@ actor AttachmentDownloader {
         filename: String,
         folderBookmark: Data?,
         forceRedownload: Bool = false
+    ) async throws -> URL {
+        let key = "\(messageID)\u{1F}\(partID)"
+        // A caller arriving mid-download — forced or not — shares the fetch already running:
+        // it is fresh by definition.
+        if let running = inFlight[key] { return try await running.value }
+        let task = Task {
+            try await performDownload(
+                messageID: messageID, accountID: accountID, uid: uid, uidValidity: uidValidity,
+                folder: folder, partID: partID, filename: filename,
+                folderBookmark: folderBookmark, forceRedownload: forceRedownload)
+        }
+        inFlight[key] = task
+        defer { inFlight[key] = nil }
+        return try await task.value
+    }
+
+    private func performDownload(
+        messageID: String,
+        accountID: UUID?,
+        uid: UInt32,
+        uidValidity: UInt32,
+        folder: String,
+        partID: String,
+        filename: String,
+        folderBookmark: Data?,
+        forceRedownload: Bool
     ) async throws -> URL {
         // 1. Check for an existing local record (skip when force-redownloading).
         let existingPath = await MainActor.run { localStore.fetchLocalPath(messageID: messageID, partID: partID) }

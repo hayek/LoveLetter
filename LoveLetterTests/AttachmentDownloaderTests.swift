@@ -7,6 +7,8 @@ import SwiftData
 final class MockIMAPClientForDownload: IMAPClientProtocol, @unchecked Sendable {
     var bytesToReturn: Data = Data([1, 2, 3, 4])
     var fetchCallCount = 0
+    /// Holds each fetch open so concurrent downloads genuinely overlap.
+    var fetchDelay: Duration = .zero
 
     func listInbox(sinceUID: UInt32, expectedUIDValidity: UInt32, fromAddresses: [String]) async throws -> InboxPollResult { InboxPollResult(messages: [], uidValidity: 0) }
     func listAllInbox(sinceUID: UInt32, expectedUIDValidity: UInt32) async throws -> InboxPollResult { InboxPollResult(messages: [], uidValidity: 0) }
@@ -14,6 +16,7 @@ final class MockIMAPClientForDownload: IMAPClientProtocol, @unchecked Sendable {
     func listSentForEnrichment(sinceDate: Date, messageIDs: Set<String>) async throws -> [ParsedInboundMessage] { [] }
     func fetchAttachmentBytes(uid: UInt32, folder: String, partID: String, expectedUIDValidity: UInt32) async throws -> Data {
         fetchCallCount += 1
+        if fetchDelay > .zero { try await Task.sleep(for: fetchDelay) }
         return bytesToReturn
     }
     func testConnection() async throws { }
@@ -178,5 +181,26 @@ final class AttachmentDownloaderTests: XCTestCase {
         XCTAssertEqual(mockClient.fetchCallCount, 2, "Should re-fetch after local file was deleted")
         XCTAssertTrue(FileManager.default.fileExists(atPath: url2.path))
         try? FileManager.default.removeItem(at: url2)
+    }
+
+    /// Opening a thread asks for the same attachment from more than one view (thumbnail and row)
+    /// at once. Both used to pass the "already downloaded?" check before either had recorded the
+    /// file, so each fetched it and the loser left an untracked `name (1).png` behind.
+    func test_download_concurrentCallsForTheSameAttachment_fetchOnce() async throws {
+        mockClient.fetchDelay = .milliseconds(200)
+        let downloader = self.downloader!
+        func fetch() async throws -> URL {
+            try await downloader.download(
+                messageID: "msg-4", accountID: nil, uid: 11, uidValidity: 0,
+                folder: "INBOX", partID: "4.1", filename: "shared.png", folderBookmark: nil)
+        }
+        async let first = fetch()
+        async let second = fetch()
+        let (url1, url2) = try await (first, second)
+
+        XCTAssertEqual(url1, url2, "both callers should get the one downloaded file")
+        XCTAssertEqual(mockClient.fetchCallCount, 1, "IMAP fetch should only happen once")
+        XCTAssertEqual(url1.lastPathComponent, "shared.png", "no numbered duplicate")
+        try? FileManager.default.removeItem(at: url1)
     }
 }
