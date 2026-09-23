@@ -88,7 +88,7 @@ if [[ -z "$NO_RELEASE" ]]; then
   gh repo view "$RELEASES_REPO" >/dev/null 2>&1 \
     || die "$RELEASES_REPO doesn't exist or isn't reachable. Create it once: gh repo create $RELEASES_REPO --public"
   # GitHub refuses releases in a repo with no commits (there's nothing to tag).
-  [[ "$(gh api "repos/$RELEASES_REPO" -q .size 2>/dev/null)" != "0" ]] \
+  gh api "repos/$RELEASES_REPO/commits?per_page=1" >/dev/null 2>&1 \
     || die "$RELEASES_REPO is empty — push a first commit (e.g. a README) before releasing"
 fi
 if [[ -n "$(git status --porcelain)" ]]; then
