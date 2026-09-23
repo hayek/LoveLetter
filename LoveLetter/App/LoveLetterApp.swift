@@ -33,6 +33,11 @@ struct LoveLetterApp: App {
     @Environment(\.scenePhase) private var scenePhase
     private let container: ModelContainer
     private let repoConfigSnapshot = ProductConfigSnapshot()
+    /// True when this process launched in DEBUG mock-data mode (see `DebugSettings`).
+    private let isMockDataMode: Bool
+    #if DEBUG
+    @State private var debugSettings = DebugSettings()
+    #endif
     @State private var store: ProductStore
     @State private var versionStore: VersionStore
     @State private var filterStore: FilterPreferenceStore
@@ -76,60 +81,24 @@ struct LoveLetterApp: App {
 
     init() {
         let isTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        let launchMode = Self.resolveLaunchMode(isTesting: isTesting)
+        let isMock = launchMode == .mock
+        isMockDataMode = isMock
         do {
-            if isTesting {
-                // In-process test host: single in-memory config, no CloudKit validation.
-                let testConfig = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-                container = try ModelContainer(
-                    for: Product.self, Repo.self, SeenIssue.self, MailAccount.self,
-                        GitHubAccount.self,
-                        MailSettings.self,
-                        MailThread.self, MailMessage.self, MailAttachment.self,
-                        IssueTranslation.self, IssueSummaryCache.self,
-                        ProjectVersion.self, SentReleaseNotification.self,
-                        CachedIssue.self, MailAttachmentLocal.self, MailAccountLocalState.self,
-                        RepoFetchState.self, FeedbackAttachmentLocal.self,
-                        ReplyTemplate.self,
-                        RepoFilterPreference.self,
-                        AppStoreReviewMirror.self,
-                        TriageVerdictRecord.self,
-                    configurations: testConfig
-                )
-            } else {
-                let cloudSchema = Schema([Product.self, Repo.self, SeenIssue.self, MailAccount.self, GitHubAccount.self, MailSettings.self, MailThread.self, MailMessage.self, MailAttachment.self, IssueTranslation.self, IssueSummaryCache.self, ProjectVersion.self, SentReleaseNotification.self, ReplyTemplate.self, RepoFilterPreference.self, AppStoreReviewMirror.self])
-                let localSchema = Schema([CachedIssue.self, MailAttachmentLocal.self, MailAccountLocalState.self, RepoFetchState.self, FeedbackAttachmentLocal.self, TriageVerdictRecord.self])
-                let cloudConfig = ModelConfiguration(
-                    "cloud",
-                    schema: cloudSchema,
-                    // Persisted under the pre-rename name; do not change.
-                    cloudKitDatabase: .private("iCloud.com.amirhayek.AppFeedback")
-                )
-                let localConfig = ModelConfiguration("local", schema: localSchema, cloudKitDatabase: .none)
-                container = try ModelContainer(
-                    for: Product.self, Repo.self, SeenIssue.self, MailAccount.self,
-                        GitHubAccount.self,
-                        MailSettings.self,
-                        MailThread.self, MailMessage.self, MailAttachment.self,
-                        IssueTranslation.self, IssueSummaryCache.self,
-                        ProjectVersion.self, SentReleaseNotification.self,
-                        CachedIssue.self, MailAttachmentLocal.self, MailAccountLocalState.self,
-                        RepoFetchState.self, FeedbackAttachmentLocal.self,
-                        ReplyTemplate.self,
-                        RepoFilterPreference.self,
-                        AppStoreReviewMirror.self,
-                        TriageVerdictRecord.self,
-                    configurations: cloudConfig, localConfig
-                )
-            }
+            container = try Self.makeContainer(mode: launchMode)
         } catch {
             assertionFailure("Failed to create ModelContainer: \(error)")
             fatalError("Failed to create ModelContainer: \(error)")
         }
+        #if DEBUG
+        // Seed BEFORE any store is constructed, so their first reload() sees the mock rows.
+        if isMock { Self.seedMockData(into: container) }
+        #endif
         let cloudContext = ModelContext(container)
         let mailAccountStoreLocal = MailAccountStore(context: ModelContext(container))
         let mailSettingsStoreLocal = MailSettingsStore(context: ModelContext(container))
         let threadStoreLocal = MailThreadStore(context: ModelContext(container))
-        if !isTesting {
+        if launchMode == .live {
             MailAccountMigration.runIfNeeded(store: mailAccountStoreLocal, settingsStore: mailSettingsStoreLocal)
             MailAccountMigration.runV2IfNeeded(
                 accountStore: mailAccountStoreLocal,
@@ -154,7 +123,7 @@ struct LoveLetterApp: App {
         _syncStatus = State(initialValue: CloudSyncStatus())
         // Seed the snapshot so tokenProvider works even before the first repos observation.
         repoConfigSnapshot.update(_store.wrappedValue.repos)
-        let activityLogURL: URL? = isTesting ? nil : {
+        let activityLogURL: URL? = launchMode != .live ? nil : {
             let supportDir = FileManager.default
                 .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
                 // On-disk folder from before the rename to Love Letter; do not change.
@@ -162,7 +131,7 @@ struct LoveLetterApp: App {
             return supportDir.appendingPathComponent("activity.json")
         }()
         _activityLog = State(initialValue: ActivityLog(persistenceURL: activityLogURL))
-        let failureStoreURL: URL? = isTesting ? nil : {
+        let failureStoreURL: URL? = launchMode != .live ? nil : {
             let supportDir = FileManager.default
                 .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
                 // On-disk folder from before the rename to Love Letter; do not change.
@@ -312,12 +281,17 @@ struct LoveLetterApp: App {
         // GitHub issue loaders: one registry owning the UI's loaders + the 15-min foreground
         // refresh loop, so periodic refreshes land in the loaders the UI actually renders.
         let cacheCtx = _cacheContext.wrappedValue
+        // Mock mode: loaders serve the seeded cache (no token, no network), and fake issues
+        // never trigger notifications or AI triage.
         let issueRegistry = IssueLoaderRegistry(
             factory: { cfg in IssueLoader(config: cfg, activityLog: activityLogValue, cacheContext: cacheCtx) },
-            notificationService: service
+            notificationService: isMock ? nil : service,
+            cacheOnly: isMock
         )
-        issueRegistry.triageSink = { groups in
-            await triageCoordinatorLocal.processLoaded(groups)
+        if !isMock {
+            issueRegistry.triageSink = { groups in
+                await triageCoordinatorLocal.processLoaded(groups)
+            }
         }
         _issueLoaderRegistry = State(initialValue: issueRegistry)
 
@@ -349,12 +323,12 @@ struct LoveLetterApp: App {
                                                       local: cliContext, cloud: cliContext,
                                                       reply: replyDeps))
         }
-        responder.start()
+        if !isMock { responder.start() }
         _cliResponder = State(initialValue: responder)
         // Re-point whatever the user already installed, so a moved or rebuilt app self-heals.
         // Never from a test host: it would re-point (or migrate away) the user's real links in
         // ~/.local/bin and ~/.claude/skills to a throwaway DerivedData build.
-        if !isTesting { CLIInstaller.refreshInstalledLinks() }
+        if launchMode == .live { CLIInstaller.refreshInstalledLinks() }
         #endif
 
         #if os(iOS)
@@ -394,12 +368,18 @@ struct LoveLetterApp: App {
             .environment(\.mailSyncCoordinatorRegistry, coordinatorRegistry)
             .environment(mirrorHolder)
             .environment(mailLocalStateStore)
-            .environment(\.notificationService, notificationService)
+            // nil in mock mode: RootView's backlog snapshot would otherwise write mock repo keys
+            // into the real UserDefaults / NotifiedIssueStore (this also hides the Notifications pane).
+            .environment(\.notificationService, isMockDataMode ? nil : notificationService)
             .environment(appStoreRegistry)
             .environment(mailDraftStore)
             .environment(quickLook)
             .environment(thumbnailCache)
             .environment(feedbackAttachmentDownloaderHolder)
+            .environment(\.isMockDataMode, isMockDataMode)
+            #if DEBUG
+            .environment(debugSettings)
+            #endif
     }
 
     var body: some Scene {
@@ -410,16 +390,19 @@ struct LoveLetterApp: App {
                     .overlay(QuickLookHost())
                     #endif
             )
-                .task { await notificationService.requestAuthorizationIfNeeded() }
+                .task { if !isMockDataMode { await notificationService.requestAuthorizationIfNeeded() } }
                 .task(id: store.repos.map(\.id)) {
                     repoConfigSnapshot.update(store.repos)
                     appStoreRegistry.syncWithProducts(ascConfigs(from: store.repos))
                 }
                 .onAppear {
-                    #if canImport(SwiftMail)
-                    coordinatorRegistry?.start()
-                    #endif
-                    appStoreRegistry.start()
+                    // Mock mode has no mail accounts or ASC credentials; don't even start the pollers.
+                    if !isMockDataMode {
+                        #if canImport(SwiftMail)
+                        coordinatorRegistry?.start()
+                        #endif
+                        appStoreRegistry.start()
+                    }
                     issueLoaderRegistry.start()
                 }
                 #if os(iOS)
@@ -534,3 +517,83 @@ private struct ActivityMenuCommand: View {
     }
 }
 #endif
+
+// MARK: - Launch mode & container
+
+extension LoveLetterApp {
+    /// Which data stack this process runs on. `.mock` is only ever produced in DEBUG builds.
+    enum LaunchMode: Equatable { case testing, mock, live }
+
+    /// Precedence: test host → mock data (DEBUG toggle, read once at launch) → real stores.
+    static func resolveLaunchMode(isTesting: Bool) -> LaunchMode {
+        if isTesting { return .testing }
+        #if DEBUG
+        if DebugSettings.isMockDataActiveAtLaunch { return .mock }
+        #endif
+        return .live
+    }
+
+    /// `.testing` and `.mock` share one in-memory, CloudKit-free configuration, so mock mode can
+    /// never open, read or sync the real stores. `.live` is the production two-store layout. It's
+    /// kept verbatim because the CLI's read-only container mirrors it exactly.
+    static func makeContainer(mode: LaunchMode) throws -> ModelContainer {
+        switch mode {
+        case .testing, .mock:
+            // In-process test host / mock data: single in-memory config, no CloudKit validation.
+            let testConfig = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+            return try ModelContainer(
+                for: Product.self, Repo.self, SeenIssue.self, MailAccount.self,
+                    GitHubAccount.self,
+                    MailSettings.self,
+                    MailThread.self, MailMessage.self, MailAttachment.self,
+                    IssueTranslation.self, IssueSummaryCache.self,
+                    ProjectVersion.self, SentReleaseNotification.self,
+                    CachedIssue.self, MailAttachmentLocal.self, MailAccountLocalState.self,
+                    RepoFetchState.self, FeedbackAttachmentLocal.self,
+                    ReplyTemplate.self,
+                    RepoFilterPreference.self,
+                    AppStoreReviewMirror.self,
+                    TriageVerdictRecord.self,
+                configurations: testConfig
+            )
+        case .live:
+            let cloudSchema = Schema([Product.self, Repo.self, SeenIssue.self, MailAccount.self, GitHubAccount.self, MailSettings.self, MailThread.self, MailMessage.self, MailAttachment.self, IssueTranslation.self, IssueSummaryCache.self, ProjectVersion.self, SentReleaseNotification.self, ReplyTemplate.self, RepoFilterPreference.self, AppStoreReviewMirror.self])
+            let localSchema = Schema([CachedIssue.self, MailAttachmentLocal.self, MailAccountLocalState.self, RepoFetchState.self, FeedbackAttachmentLocal.self, TriageVerdictRecord.self])
+            let cloudConfig = ModelConfiguration(
+                "cloud",
+                schema: cloudSchema,
+                // Persisted under the pre-rename name; do not change.
+                cloudKitDatabase: .private("iCloud.com.amirhayek.AppFeedback")
+            )
+            let localConfig = ModelConfiguration("local", schema: localSchema, cloudKitDatabase: .none)
+            return try ModelContainer(
+                for: Product.self, Repo.self, SeenIssue.self, MailAccount.self,
+                    GitHubAccount.self,
+                    MailSettings.self,
+                    MailThread.self, MailMessage.self, MailAttachment.self,
+                    IssueTranslation.self, IssueSummaryCache.self,
+                    ProjectVersion.self, SentReleaseNotification.self,
+                    CachedIssue.self, MailAttachmentLocal.self, MailAccountLocalState.self,
+                    RepoFetchState.self, FeedbackAttachmentLocal.self,
+                    ReplyTemplate.self,
+                    RepoFilterPreference.self,
+                    AppStoreReviewMirror.self,
+                    TriageVerdictRecord.self,
+                configurations: cloudConfig, localConfig
+            )
+        }
+    }
+
+    #if DEBUG
+    /// Seeds the in-memory mock container. Loud on failure (DEBUG only); the app still launches
+    /// with whatever was saved.
+    static func seedMockData(into container: ModelContainer) {
+        do {
+            try MockDataSeeder.seed(into: ModelContext(container))
+        } catch {
+            Logger().error("Mock data seeding failed: \(error.localizedDescription, privacy: .public)")
+            assertionFailure("Mock data seeding failed: \(error)")
+        }
+    }
+    #endif
+}
