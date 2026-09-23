@@ -1,10 +1,10 @@
 import Foundation
 import Observation
 
-/// State + step logic behind `AddProductWizard`. The step list is derived from the chosen
-/// sources, so a product can collect feedback from any combination of the SDK, App Store reviews
-/// and an email inbox. Every product still needs a GitHub repository: it's where each source files
-/// its feedback as issues.
+/// State + step logic behind `AddProductWizard`. Every source (the SDK, App Store reviews, an
+/// email inbox) gets its own step that the user either sets up or skips, so a product can collect
+/// feedback from any combination of them. Every product still needs a GitHub repository: it's
+/// where each source files its feedback as issues.
 @MainActor
 @Observable
 final class AddProductWizardModel {
@@ -13,15 +13,26 @@ final class AddProductWizardModel {
         var id: String { rawValue }
     }
 
-    enum Step: Hashable {
-        case sources, repository, appStore, email, sdk, summary
+    enum Step: Hashable, CaseIterable {
+        case repository, sdk, appStore, email, summary
+
+        /// The source a step sets up; nil for the required repository step and the summary.
+        var source: Source? {
+            switch self {
+            case .sdk:      .sdk
+            case .appStore: .appStore
+            case .email:    .email
+            case .repository, .summary: nil
+            }
+        }
     }
 
     /// Minted up front so the email inbox account can reference the product before it exists.
     let productID = UUID()
 
-    var sources: Set<Source> = []
-    private(set) var step: Step = .sources
+    /// The sources set up so far: a source step's Continue adds it, Skip removes it.
+    private(set) var sources: Set<Source> = []
+    private(set) var step: Step = .repository
     /// Direction of the last move, so the view can slide steps in from the matching edge.
     private(set) var movedForward = true
 
@@ -48,22 +59,15 @@ final class AddProductWizardModel {
 
     // MARK: - Steps
 
-    var steps: [Step] {
-        var steps: [Step] = [.sources, .repository]
-        if sources.contains(.appStore) { steps.append(.appStore) }
-        if sources.contains(.email) { steps.append(.email) }
-        if sources.contains(.sdk) { steps.append(.sdk) }
-        steps.append(.summary)
-        return steps
-    }
+    let steps = Step.allCases
 
     var stepNumber: Int { (steps.firstIndex(of: step) ?? 0) + 1 }
     var isFirstStep: Bool { step == steps.first }
     var isLastStep: Bool { step == .summary }
+    var canSkip: Bool { step.source != nil }
 
     var canContinue: Bool {
         switch step {
-        case .sources:    !sources.isEmpty
         case .repository: hasRepository && !isDuplicateRepository
         case .appStore:   appStore.canSave
         case .email:      email.canTest
@@ -73,7 +77,19 @@ final class AddProductWizardModel {
     }
 
     func goForward() {
-        guard canContinue, let index = steps.firstIndex(of: step), index + 1 < steps.count else { return }
+        guard canContinue else { return }
+        if let source = step.source { sources.insert(source) }
+        advance()
+    }
+
+    func skip() {
+        guard let source = step.source else { return }
+        sources.remove(source)
+        advance()
+    }
+
+    private func advance() {
+        guard let index = steps.firstIndex(of: step), index + 1 < steps.count else { return }
         movedForward = true
         step = steps[index + 1]
         if step == .summary && trimmed(name).isEmpty { name = suggestedName }

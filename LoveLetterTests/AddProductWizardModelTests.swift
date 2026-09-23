@@ -3,40 +3,22 @@ import XCTest
 
 @MainActor
 final class AddProductWizardModelTests: XCTestCase {
-    private func modelWithRepo(_ sources: Set<AddProductWizardModel.Source>) -> AddProductWizardModel {
+    private func modelWithRepo() -> AddProductWizardModel {
         let model = AddProductWizardModel()
-        model.sources = sources
         model.owner = "acme"; model.repo = "app-feedback"; model.token = "ghp_x"
         return model
     }
 
-    func testStepsFollowChosenSources() {
-        let model = AddProductWizardModel()
-        model.sources = [.sdk]
-        XCTAssertEqual(model.steps, [.sources, .repository, .sdk, .summary])
-        model.sources = [.email]
-        XCTAssertEqual(model.steps, [.sources, .repository, .email, .summary])
-        model.sources = [.appStore]
-        XCTAssertEqual(model.steps, [.sources, .repository, .appStore, .summary])
-        model.sources = [.sdk, .appStore, .email]
-        XCTAssertEqual(model.steps, [.sources, .repository, .appStore, .email, .sdk, .summary])
-    }
-
-    func testCannotLeaveSourcesWithNothingChosen() {
-        let model = AddProductWizardModel()
-        XCTAssertFalse(model.canContinue)
-        model.goForward()
-        XCTAssertEqual(model.step, .sources)
-        model.sources = [.email]
-        model.goForward()
-        XCTAssertEqual(model.step, .repository)
+    func testEverySourceGetsItsOwnStep() {
+        XCTAssertEqual(AddProductWizardModel().steps, [.repository, .sdk, .appStore, .email, .summary])
     }
 
     func testRepositoryStepNeedsOwnerRepoTokenAndRejectsDuplicates() {
         let model = AddProductWizardModel()
-        model.sources = [.sdk]
-        model.goForward()
         XCTAssertFalse(model.canContinue)
+        XCTAssertFalse(model.canSkip, "the repository is required")
+        model.skip()
+        XCTAssertEqual(model.step, .repository)
         model.owner = "acme"; model.repo = "app"
         XCTAssertFalse(model.canContinue, "token still missing")
         model.token = "ghp_x"
@@ -46,28 +28,45 @@ final class AddProductWizardModelTests: XCTestCase {
         XCTAssertFalse(model.canContinue)
     }
 
-    func testSummaryPrefillsNameFromRepoAndBackReturns() {
-        let model = modelWithRepo([.sdk])
-        model.goForward() // repository
-        model.goForward() // sdk
-        model.goForward() // summary
+    func testContinueSetsUpASourceAndSkipLeavesItOff() {
+        let model = modelWithRepo()
+        model.goForward()                   // → sdk
+        model.goForward()                   // sdk set up → appStore
+        XCTAssertEqual(model.step, .appStore)
+        XCTAssertFalse(model.canContinue, "App Store needs credentials")
+        model.skip()                        // → email
+        model.skip()                        // → summary
         XCTAssertEqual(model.step, .summary)
+        XCTAssertEqual(model.sources, [.sdk])
         XCTAssertEqual(model.name, "app-feedback")
         XCTAssertTrue(model.isLastStep)
+    }
+
+    func testGoingBackAndSkippingTurnsASourceOff() {
+        let model = modelWithRepo()
+        model.goForward(); model.goForward() // sdk set up, now on appStore
         model.goBack()
         XCTAssertEqual(model.step, .sdk)
         XCTAssertFalse(model.movedForward)
+        model.skip()
+        XCTAssertEqual(model.sources, [])
     }
 
     func testSuggestedNamePrefersPickedAppStoreApp() {
-        let model = modelWithRepo([.appStore])
+        let model = modelWithRepo()
+        model.goForward(); model.skip()      // on appStore
+        model.appStore.issuerID = "iss"; model.appStore.keyID = "kid"; model.appStore.pemText = "pem"
         model.appStore.discoveredApps = [ASCApp(id: "42", bundleId: "com.acme.app", name: "Acme")]
         model.appStore.selectedAppID = "42"
+        model.goForward()                    // App Store set up
         XCTAssertEqual(model.suggestedName, "Acme")
     }
 
     func testMakeConfigCarriesOnlyChosenSources() {
-        let model = modelWithRepo([.email])
+        let model = modelWithRepo()
+        model.goForward(); model.skip(); model.skip() // on email
+        model.email.username = "f@acme.com"; model.email.password = "pw"
+        model.goForward()                    // email set up
         model.appStore.issuerID = "iss"; model.appStore.keyID = "kid"; model.appStore.manualAppID = "42"
         model.name = "  Acme  "
         model.colorHex = "7b8cff"
@@ -84,7 +83,7 @@ final class AddProductWizardModelTests: XCTestCase {
     }
 
     func testRedactsAddressesUnlessRepoKnownPrivate() {
-        let model = modelWithRepo([.sdk])
+        let model = modelWithRepo()
         XCTAssertTrue(model.makeConfig().redactEmailAddresses)
         model.repoIsPrivate = true
         XCTAssertFalse(model.makeConfig().redactEmailAddresses)

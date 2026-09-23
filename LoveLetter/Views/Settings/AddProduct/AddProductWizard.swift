@@ -6,9 +6,9 @@ import AppKit
 import UIKit
 #endif
 
-/// Step-by-step "Add Product" flow: pick the feedback sources (any combination of the SDK, App
-/// Store reviews and an email inbox), connect the GitHub repository every source files into, set
-/// up each chosen source, then review, name and tint the product.
+/// Step-by-step "Add Product" flow: connect the GitHub repository every source files into, then
+/// set up or skip each feedback source in turn (the SDK, App Store reviews, an email inbox), then
+/// review, name and tint the product.
 struct AddProductWizard: View {
     var store: ProductStore
     /// Called with the new product's id once it's saved, so the caller can select it.
@@ -64,6 +64,9 @@ struct AddProductWizard: View {
                 if !model.isFirstStep {
                     Button("Back") { move(forward: false) }
                 }
+                if model.canSkip {
+                    Button("Skip") { skip() }
+                }
                 primaryButton
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
@@ -87,6 +90,11 @@ struct AddProductWizard: View {
                         }
                     }
                     ToolbarItem(placement: .confirmationAction) { primaryButton }
+                    if model.canSkip {
+                        ToolbarItem(placement: .bottomBar) {
+                            Button("Skip") { skip() }
+                        }
+                    }
                 }
         }
         #endif
@@ -146,6 +154,10 @@ struct AddProductWizard: View {
         .transition(.push(from: model.movedForward ? .trailing : .leading))
     }
 
+    private func skip() {
+        withAnimation(.snappy) { model.skip() }
+    }
+
     private func move(forward: Bool) {
         withAnimation(.snappy) {
             if forward { model.goForward() } else { model.goBack() }
@@ -156,23 +168,18 @@ struct AddProductWizard: View {
 
     private var stepInfo: (symbol: String, title: String, subtitle: String) {
         switch model.step {
-        case .sources:
-            ("tray.and.arrow.down.fill", "New Product",
-             "Choose where this product's feedback comes from. Pick any combination.")
         case .repository:
-            ("externaldrive.fill.badge.checkmark", "GitHub Repository",
-             model.sources == [.sdk]
-                ? "The repository your app sends feedback to."
-                : "Love Letter files every piece of feedback as an issue in this repository.")
+            ("externaldrive.fill.badge.checkmark", "New Product",
+             "Pick the GitHub repository for this product. Feedback from every source is kept there as issues.")
+        case .sdk:
+            ("hammer.fill", "In-App Feedback",
+             "Let people send bug reports and feature requests from inside your app with the Love Letter SDK.")
         case .appStore:
             ("star.bubble.fill", "App Store Reviews",
              "Connect an App Store Connect API key to read reviews and reply from Love Letter.")
         case .email:
-            ("envelope.fill", "Feedback Inbox",
+            ("envelope.fill", "Email",
              "Connect a mailbox dedicated to feedback. Each new email becomes a feedback item.")
-        case .sdk:
-            ("hammer.fill", "Add the SDK to Your App",
-             "Let people send bug reports and feature requests from inside your app.")
         case .summary:
             ("checkmark.seal.fill", "Review", "Name your product and check everything's right.")
         }
@@ -181,44 +188,11 @@ struct AddProductWizard: View {
     @ViewBuilder
     private var stepContent: some View {
         switch model.step {
-        case .sources:    sourcesStep
         case .repository: repositoryStep
         case .appStore:   appStoreStep
         case .email:      emailStep
         case .sdk:        sdkStep
         case .summary:    summaryStep
-        }
-    }
-
-    // MARK: Sources
-
-    private var sourcesStep: some View {
-        Section {
-            sourceToggle(.sdk, title: "In-App Feedback", systemImage: "hammer",
-                         detail: "Reports sent from your app with the Love Letter SDK")
-            sourceToggle(.appStore, title: "App Store Reviews", systemImage: "star.bubble",
-                         detail: "Ratings and reviews, with replies from Love Letter")
-            sourceToggle(.email, title: "Email", systemImage: "envelope",
-                         detail: "Messages sent to a dedicated feedback address")
-        } footer: {
-            Text("You can add or remove sources later in the product's settings.")
-        }
-    }
-
-    private func sourceToggle(_ source: AddProductWizardModel.Source, title: String,
-                              systemImage: String, detail: String) -> some View {
-        Toggle(isOn: Binding(
-            get: { model.sources.contains(source) },
-            set: { on in
-                if on { model.sources.insert(source) } else { model.sources.remove(source) }
-            }
-        )) {
-            Label {
-                Text(title)
-                Text(detail)
-            } icon: {
-                Image(systemName: systemImage)
-            }
         }
     }
 
@@ -334,6 +308,11 @@ struct AddProductWizard: View {
                 if case .failed(let message) = asc.phase {
                     Label(message, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
+                    // Fallback when the key can't list apps: the numeric Apple ID from App Store Connect.
+                    TextField("Apple ID", text: Bindable(asc).manualAppID, prompt: Text("Numeric app ID"))
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
                 }
             }
         }
@@ -497,29 +476,30 @@ struct AddProductWizard: View {
             ColorSwatchPicker(selection: $model.colorHex)
         }
 
-        Section("Feedback From") {
-            if model.sources.contains(.sdk) {
-                summaryRow("In-App Feedback", systemImage: "hammer", value: "Love Letter SDK")
-            }
-            if model.sources.contains(.appStore) {
-                summaryRow("App Store Reviews", systemImage: "star.bubble",
-                           value: model.selectedApp?.name ?? "App \(model.appStore.resolvedAppAppleID() ?? "")")
-            }
-            if model.sources.contains(.email) {
-                summaryRow("Email", systemImage: "envelope", value: model.email.username)
-            }
-        }
-
         Section {
             summaryRow("Repository", systemImage: "externaldrive", value: "\(model.owner)/\(model.repo)")
+            summaryRow("In-App Feedback", systemImage: "hammer",
+                       value: model.sources.contains(.sdk) ? "Love Letter SDK" : nil)
+            summaryRow("App Store Reviews", systemImage: "star.bubble",
+                       value: model.sources.contains(.appStore)
+                           ? model.selectedApp?.name ?? "App \(model.appStore.resolvedAppAppleID() ?? "")"
+                           : nil)
+            summaryRow("Email", systemImage: "envelope",
+                       value: model.sources.contains(.email) ? model.email.username : nil)
+        } header: {
+            Text("Feedback")
         } footer: {
-            Text("Everything else, like mirroring email replies to GitHub, can be changed later in the product's settings.")
+            Text("You can set up skipped sources, and options like mirroring email replies to GitHub, later in the product's settings.")
         }
     }
 
-    private func summaryRow(_ title: String, systemImage: String, value: String) -> some View {
+    /// A nil `value` marks a skipped source.
+    private func summaryRow(_ title: String, systemImage: String, value: String?) -> some View {
         LabeledContent {
-            Text(value).lineLimit(1).truncationMode(.middle)
+            Text(value ?? "Skipped")
+                .foregroundStyle(value == nil ? .tertiary : .secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
         } label: {
             Label(title, systemImage: systemImage)
         }
