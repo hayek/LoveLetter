@@ -13,7 +13,7 @@ final class IssueLoaderTests: XCTestCase {
         super.setUp()
         MockURLProtocol.requestHandler = nil
         let schema = Schema([CachedIssue.self, RepoFetchState.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         container = try! ModelContainer(for: schema, configurations: config)
         context = ModelContext(container)
     }
@@ -343,5 +343,39 @@ final class IssueLoaderTests: XCTestCase {
         let result = try IssueLoader.decodePageForTesting(data: json, owner: "o", repo: "r")
         let expected = ISO8601DateFormatter().date(from: "2024-01-01T00:00:00Z")
         XCTAssertEqual(result.first?.createdAt, expected)
+    }
+
+    // MARK: - Cache-only (mock data mode)
+
+    func test_loadCachedOnly_servesOpenRowsWithoutNetwork() {
+        MockURLProtocol.requestHandler = { _ in
+            XCTFail("cache-only load must not touch the network")
+            throw URLError(.notConnectedToInternet)
+        }
+        let open = CachedIssue(repoOwner: "org", repoName: "feedback", number: 1, title: "Open",
+                               createdAt: Date(timeIntervalSince1970: 1_750_000_000), rawBody: "",
+                               appName: nil, appVersion: nil, device: nil, osVersion: nil, email: nil,
+                               issueDescription: "d")
+        let closed = CachedIssue(repoOwner: "org", repoName: "feedback", number: 2, title: "Closed",
+                                 createdAt: Date(timeIntervalSince1970: 1_750_000_000), state: .closed,
+                                 rawBody: "", appName: nil, appVersion: nil, device: nil, osVersion: nil,
+                                 email: nil, issueDescription: "d")
+        context.insert(open); context.insert(closed)
+        try! context.save()
+
+        let loader = makeLoader()
+        loader.loadCachedOnly()
+
+        guard case .loaded(let issues, let date) = loader.state else { return XCTFail("expected .loaded, got \(loader.state)") }
+        XCTAssertEqual(issues.map(\.number), [1])
+        XCTAssertFalse(loader.isShowingCachedData, "cache-only is the final state, not the stale-cache sentinel")
+        XCTAssertNotEqual(date, Date(timeIntervalSince1970: 0))
+    }
+
+    func test_loadCachedOnly_emptyCacheIsLoadedNotIdle() {
+        let loader = makeLoader()
+        loader.loadCachedOnly()
+        guard case .loaded(let issues, _) = loader.state else { return XCTFail("empty cache must be .loaded([]) so the list isn't an endless spinner") }
+        XCTAssertTrue(issues.isEmpty)
     }
 }

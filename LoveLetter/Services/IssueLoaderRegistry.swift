@@ -29,6 +29,8 @@ final class IssueLoaderRegistry {
     private let tokenProvider: @Sendable (ProductConfig) async -> String?
     private let notificationService: NotificationService?
     private let clock: () -> Date
+    /// Mock-data mode: loaders only re-read the seeded local cache. No Keychain, no network.
+    private let cacheOnly: Bool
 
     /// Invoked after each refresh tick with every loaded product's issues —
     /// the AI triage entry point. Optional and fire-and-forget like the
@@ -39,12 +41,14 @@ final class IssueLoaderRegistry {
         factory: @escaping (ProductConfig) -> IssueLoader,
         tokenProvider: @escaping @Sendable (ProductConfig) async -> String? = { await KeychainService.load(for: $0) },
         notificationService: NotificationService? = nil,
-        clock: @escaping () -> Date = { Date() }
+        clock: @escaping () -> Date = { Date() },
+        cacheOnly: Bool = false
     ) {
         self.factory = factory
         self.tokenProvider = tokenProvider
         self.notificationService = notificationService
         self.clock = clock
+        self.cacheOnly = cacheOnly
     }
 
     /// Creates loaders for newly-added products (dispatching their initial load) and drops
@@ -147,6 +151,10 @@ final class IssueLoaderRegistry {
     }
 
     private func load(_ repos: [ProductConfig], fullReconcile: Bool) async {
+        if cacheOnly {
+            for repo in repos { loaders[repo.id]?.loadCachedOnly() }
+            return
+        }
         await withTaskGroup(of: Void.self) { group in
             for repo in repos {
                 guard let loader = loaders[repo.id] else { continue }

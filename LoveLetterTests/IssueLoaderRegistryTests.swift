@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import LoveLetter
 
 @MainActor
@@ -186,6 +187,70 @@ final class IssueLoaderRegistryTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(10))
         }
         XCTFail("condition not met within timeout")
+    }
+
+    // MARK: cacheOnly (mock data mode)
+
+    private func makeCacheOnlyRegistry(cachedNumbers: [Int], repo: String) throws -> (IssueLoaderRegistry, ModelContainer) {
+        let schema = Schema([CachedIssue.self, RepoFetchState.self])
+        let container = try ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        for n in cachedNumbers {
+            context.insert(CachedIssue(repoOwner: "o", repoName: repo, number: n, title: "Cached \(n)",
+                                       createdAt: Self.epoch, rawBody: "", appName: nil, appVersion: nil,
+                                       device: nil, osVersion: nil, email: nil, issueDescription: "d"))
+        }
+        try context.save()
+        MockURLProtocol.requestHandler = { _ in
+            XCTFail("cache-only registry must not touch the network")
+            throw URLError(.notConnectedToInternet)
+        }
+        let registry = IssueLoaderRegistry(
+            factory: { IssueLoader(config: $0, session: .mock, cacheContext: context) },
+            tokenProvider: { _ in
+                XCTFail("cache-only registry must never look up a token")
+                return nil
+            },
+            clock: { IssueLoaderRegistryTests.epoch },
+            cacheOnly: true)
+        return (registry, container)
+    }
+
+    func testCacheOnlyLoadAllServesCacheWithoutToken() async throws {
+        let (registry, container) = try makeCacheOnlyRegistry(cachedNumbers: [3, 7], repo: "a")
+        _ = container   // keep the store alive for the test's duration
+        let a = makeConfig("a")
+        registry.syncWithProducts([a])
+        await registry.loadAll(fullReconcile: true)   // the pull-to-refresh path
+        guard case .loaded(let issues, _)? = registry.loaders[a.id]?.state else {
+            return XCTFail("expected .loaded")
+        }
+        XCTAssertEqual(Set(issues.map(\.number)), [3, 7])
+        XCTAssertEqual(registry.lastRefreshAt, Self.epoch)
+    }
+
+    func testCacheOnlyEmptyCacheLandsLoadedEmpty() async throws {
+        let (registry, container) = try makeCacheOnlyRegistry(cachedNumbers: [], repo: "a")
+        _ = container
+        let a = makeConfig("a")
+        registry.syncWithProducts([a])
+        await registry.loadAll()
+        guard case .loaded(let issues, _)? = registry.loaders[a.id]?.state else {
+            return XCTFail("empty cache must be .loaded([]), not .idle (endless spinner)")
+        }
+        XCTAssertTrue(issues.isEmpty)
+    }
+
+    func testCacheOnlyRefreshTickAndSingleProductLoadNeverAskForToken() async throws {
+        let (registry, container) = try makeCacheOnlyRegistry(cachedNumbers: [1], repo: "a")
+        _ = container
+        let a = makeConfig("a")
+        registry.syncWithProducts([a])
+        await registry.refreshTick()
+        await registry.load(productID: a.id, fullReconcile: true)
+        await registry.pollIfStale()
+        guard case .loaded(let issues, _)? = registry.loaders[a.id]?.state else { return XCTFail("expected .loaded") }
+        XCTAssertEqual(issues.map(\.number), [1])
     }
 }
 
