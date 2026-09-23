@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00483C1EE3A8BAAA43FFCEA0 /* DebugSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877CBE941E4082E9EA3B7308 /* DebugSettingsTests.swift */; };
 		01547EC66AB6971797B0838F /* MessageIDGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB6EEC52E99B4FCDB2A111DF /* MessageIDGenerator.swift */; };
 		019E918C07E09F28DB37A12E /* CLIIPCTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6514F0D850C3EA75371C338E /* CLIIPCTests.swift */; };
 		0250D2A31889358ECF91450C /* EmailSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74F1853F1B0B0CDC1737E5D2 /* EmailSettingsView.swift */; };
@@ -122,6 +123,7 @@
 		333DFF1A2058BA095D290901 /* SourceBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8753C5080505F01A5FD04E7B /* SourceBadgeView.swift */; };
 		3370994C5374D61356BFD387 /* VersionRenameCascadeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75873F9C158F483743F9ECF3 /* VersionRenameCascadeTests.swift */; };
 		33A5E802E4D03ECF477162C3 /* AppStoreConnectAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6753FDC06243A74B0650E008 /* AppStoreConnectAuth.swift */; };
+		33C591CE11CB68306F3E345C /* DebugSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381063BF8091A86D5D8BBB41 /* DebugSettings.swift */; };
 		33E065D63524A15DCC102BC4 /* AppStoreReviewCoordinatorRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B9D04666F85A1277EA89D7 /* AppStoreReviewCoordinatorRegistry.swift */; };
 		34FABB6D26315EC582F613DA /* MailSettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C329A0DF61FE42E3AE0C184 /* MailSettingsStoreTests.swift */; };
 		351D126CF4AEEDB027F577A8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E06E89438CF568D00AE51A /* SettingsView.swift */; };
@@ -334,6 +336,7 @@
 		805F64060253CAC7D1B00AAC /* RepoSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58C12DE8D98EEE3294B394AC /* RepoSectionView.swift */; };
 		813DE08BC5785835E1794054 /* CLIRequestResponder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCE0A1DE1C7C42C65621AE81 /* CLIRequestResponder.swift */; };
 		814AECDF66BBFFBB45278822 /* FeedbackTriageCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C3DD89574EEBEB4CADA1258 /* FeedbackTriageCoordinator.swift */; };
+		826B413B1152A84B6F3A6540 /* DebugSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877CBE941E4082E9EA3B7308 /* DebugSettingsTests.swift */; };
 		82CCFE6609413E4DEEF36F7D /* DeviceNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E047E25680592127C2960D6 /* DeviceNameTests.swift */; };
 		82F67D316EA54D91D66EEBA6 /* MailAccountLocalStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B40DBB08AB8673BC280EFC /* MailAccountLocalStateStore.swift */; };
 		831F67EEAEC23B281A991898 /* AppStoreConnectClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DF7B2339214ED60C5A24B5F /* AppStoreConnectClient.swift */; };
@@ -468,6 +471,7 @@
 		B3CD7539634EAE5CA48C04E9 /* TaskVersionFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF4DE2D53050CFB46D9F7D80 /* TaskVersionFilterTests.swift */; };
 		B3D9B79BF434EEDE10FB3CED /* IntelligenceSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C5D47DCBB815200B4CBE0C1 /* IntelligenceSettingsTests.swift */; };
 		B3E4ACB337AA2B069C496CEA /* ActivityWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 675ADF55C84DC069538F20A3 /* ActivityWindow.swift */; };
+		B49F59945E0A03D063F78290 /* DebugSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381063BF8091A86D5D8BBB41 /* DebugSettings.swift */; };
 		B5114AA9DB7546D88F07F8E8 /* IMAPClientError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D81BCDBC1B686BD5F96C2A7 /* IMAPClientError.swift */; };
 		B5908DE5F7C499E3E9B4A4D8 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3BB3D92EFF8F2D403A20C83F /* AppIcon.icon */; };
 		B6C4A5C8A130840E1BB02F68 /* IssueSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48FC3EE37090D4F579938AC /* IssueSummary.swift */; };
@@ -757,6 +761,7 @@
 		36481B7783C81617BAD62AD2 /* MailSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSettings.swift; sourceTree = "<group>"; };
 		366D6055F07022B9DE62940E /* MailMessageHeaders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailMessageHeaders.swift; sourceTree = "<group>"; };
 		36FCC922EC2F0818FBBF80FC /* TriageSuggestionChipSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageSuggestionChipSmokeTests.swift; sourceTree = "<group>"; };
+		381063BF8091A86D5D8BBB41 /* DebugSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettings.swift; sourceTree = "<group>"; };
 		3976AC47AACBBDE5997D08AF /* MailAccountStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailAccountStore.swift; sourceTree = "<group>"; };
 		39B9D04666F85A1277EA89D7 /* AppStoreReviewCoordinatorRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreReviewCoordinatorRegistry.swift; sourceTree = "<group>"; };
 		3B3BD7F8BB06C9BD24A567BB /* ThreadMatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadMatcherTests.swift; sourceTree = "<group>"; };
@@ -871,6 +876,7 @@
 		851A30636DBB5FEBDA687D76 /* GitHubAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAuthService.swift; sourceTree = "<group>"; };
 		85586F03B87FBDAA6EBCF60D /* InboundNoiseFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboundNoiseFilter.swift; sourceTree = "<group>"; };
 		8753C5080505F01A5FD04E7B /* SourceBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceBadgeView.swift; sourceTree = "<group>"; };
+		877CBE941E4082E9EA3B7308 /* DebugSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsTests.swift; sourceTree = "<group>"; };
 		8795A76FD705C19972666E36 /* IssueLoaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueLoaderTests.swift; sourceTree = "<group>"; };
 		898F1C12E0FD1E1931C036C0 /* RepoFilterPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoFilterPreference.swift; sourceTree = "<group>"; };
 		8ACFEAB0D8B409AB395B2C8A /* ReleaseNotificationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseNotificationServiceTests.swift; sourceTree = "<group>"; };
@@ -1154,6 +1160,14 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		6913B97EC41C32FA2BC1EB57 /* Debug */ = {
+			isa = PBXGroup;
+			children = (
+				381063BF8091A86D5D8BBB41 /* DebugSettings.swift */,
+			);
+			path = Debug;
+			sourceTree = "<group>";
+		};
 		6FAC81A92E8614E95C987BA3 /* Sidebar */ = {
 			isa = PBXGroup;
 			children = (
@@ -1283,6 +1297,7 @@
 				D4F4F6A403F53B3204BB4344 /* VersionService.swift */,
 				2C3AFC32E14D06C1FADA9FAE /* VersionStore.swift */,
 				A9C882A75D7CD15763ACB09B /* AppStore */,
+				6913B97EC41C32FA2BC1EB57 /* Debug */,
 				EFE1A41D9B907A06E2B3E01F /* Intelligence */,
 				74C5F4B95CABE35502114BCF /* Mail */,
 				3ADE024FD6537330B76AAD86 /* Notifications */,
@@ -1323,6 +1338,7 @@
 				7A408349906619410D8CCF9C /* ColorPaletteTests.swift */,
 				099CBF8977B807000F820B0E /* ComposeFormCoreSmokeTests.swift */,
 				47AEE631F99C6150D070C73E /* ComposeMailViewModelTests.swift */,
+				877CBE941E4082E9EA3B7308 /* DebugSettingsTests.swift */,
 				2E047E25680592127C2960D6 /* DeviceNameTests.swift */,
 				9185D43BDD8985EF2F771F00 /* EmailSourceFormModelTests.swift */,
 				DC62ADB28E2B2889E9E4684C /* FeedbackAttachmentDownloaderTests.swift */,
@@ -1748,6 +1764,7 @@
 				C87DC013CBD50C1D5A9EB061 /* ColorPaletteTests.swift in Sources */,
 				545FA8AFCBDE67A5D74A09EE /* ComposeFormCoreSmokeTests.swift in Sources */,
 				860FA029FCD7979F4E48C18B /* ComposeMailViewModelTests.swift in Sources */,
+				00483C1EE3A8BAAA43FFCEA0 /* DebugSettingsTests.swift in Sources */,
 				DDE156F22A7BCEB4F7827F9A /* DeviceNameTests.swift in Sources */,
 				3D89EBD8AD7FA8CFF8DFA442 /* EmailSourceFormModelTests.swift in Sources */,
 				BCD2EDA93803F000AD59535A /* FakeAppStoreConnectClient.swift in Sources */,
@@ -1870,6 +1887,7 @@
 				5B7952BF573C4173538DD957 /* ColorPaletteTests.swift in Sources */,
 				8BA35296791286073CB388F8 /* ComposeFormCoreSmokeTests.swift in Sources */,
 				C403C2EC57A138A649FC63F6 /* ComposeMailViewModelTests.swift in Sources */,
+				826B413B1152A84B6F3A6540 /* DebugSettingsTests.swift in Sources */,
 				82CCFE6609413E4DEEF36F7D /* DeviceNameTests.swift in Sources */,
 				CB1202C77AE0F0168B655EDD /* EmailSourceFormModelTests.swift in Sources */,
 				EC5CA490F400534E4A28B379 /* FakeAppStoreConnectClient.swift in Sources */,
@@ -2015,6 +2033,7 @@
 				3FF12EED5BC9C47C801DCD48 /* ComposeMailViewModel.swift in Sources */,
 				10E96FED613EADA43B97F9B0 /* ComposeRequest.swift in Sources */,
 				2710B0E383FF8C947150CCB2 /* CreateTaskSheet.swift in Sources */,
+				B49F59945E0A03D063F78290 /* DebugSettings.swift in Sources */,
 				6B7D1460D10753807D7DCAD5 /* DetailDesign.swift in Sources */,
 				4BD4577903CC251BBF91D9BA /* DeviceName.swift in Sources */,
 				571D57150196C06A493DB4AC /* EmailAccountEditor.swift in Sources */,
@@ -2227,6 +2246,7 @@
 				2ADC4DDDB4688F3B64B20314 /* ComposeMailViewModel.swift in Sources */,
 				7AB0E86292BB646657A36D8C /* ComposeRequest.swift in Sources */,
 				ED182C8337904670D9892C5D /* CreateTaskSheet.swift in Sources */,
+				33C591CE11CB68306F3E345C /* DebugSettings.swift in Sources */,
 				E127AFEB189AA12CD2DB1F23 /* DetailDesign.swift in Sources */,
 				150FC3F0827FCEF26AE15885 /* DeviceName.swift in Sources */,
 				991E7E974D6D1AFD1B7BD799 /* EmailAccountEditor.swift in Sources */,
