@@ -95,6 +95,8 @@ struct FeedbackItem: Codable, Equatable {
     let tasks: [TaskRef]
     let triage: TriageInfo?
     let url: String
+    /// Not yet opened in Love Letter. Last so the memberwise init stays source-compatible.
+    var unread: Bool? = nil
 }
 
 struct AttachmentDTO: Codable, Equatable {
@@ -165,5 +167,68 @@ struct TaskDetail: Codable, Equatable {
     let notes: String
     let feedback: [LinkedFeedback]
     let url: String
+}
+
+// MARK: - Versions
+
+struct VersionItem: Codable, Equatable {
+    let name: String
+    let releaseTitle: String?
+    /// `new` | `wip` | `released` — the same derived state the app's version cards show.
+    let state: String
+    let milestoneNumber: Int?
+    let released: Bool
+    let releasedAt: Date?
+    let releaseTag: String?
+    let taskCount: Int
+    let doneCount: Int
+    let createdAt: Date
+}
+
+struct ReleaseRecipientDTO: Codable, Equatable {
+    let email: String
+    let feedback: [Int]
+    /// Already sent a release email for this version. The app leaves these unticked, and
+    /// `versions release` skips them unless `--resend` is passed.
+    let alreadyEmailed: Bool
+}
+
+struct SentEmailDTO: Codable, Equatable {
+    let email: String
+    let feedback: [Int]
+    let status: String          // "sent" | "failed"
+    let sentAt: Date
+    let error: String?
+}
+
+struct VersionDetailDTO: Codable, Equatable {
+    let version: VersionItem
+    let changelog: String
+    let tasks: [TaskItemDTO]
+    let recipients: [ReleaseRecipientDTO]
+    let sentEmails: [SentEmailDTO]
+    /// Where `versions release` publishes the GitHub Release.
+    let releaseRepo: String
+}
+
+// MARK: - Templates and accounts
+
+struct TemplateDTO: Codable, Equatable {
+    let title: String
+    let body: String
+    let updatedAt: Date
+}
+
+struct AccountsDTO: Codable, Equatable {
+    struct GitHub: Codable, Equatable { let login: String }
+    struct Mail: Codable, Equatable {
+        let address: String
+        let service: String
+        let isDefaultSender: Bool
+        /// The product this account is the feedback inbox for, if any.
+        let feedbackInboxFor: String?
+    }
+    let github: [GitHub]
+    let mail: [Mail]
 }
 #endif

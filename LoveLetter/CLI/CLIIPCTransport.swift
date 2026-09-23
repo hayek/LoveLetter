@@ -27,8 +27,13 @@ enum CLIIPCTransport {
         directory.appending(path: "req-\(id.uuidString).claim-\(pid).json")
     }
 
+    /// Owner-only: requests can carry a GitHub token or a mail password (`products add
+    /// --token-stdin`, `products email --password-stdin`) for the moment they sit on disk.
     static func ensureDirectory(_ directory: URL) throws {
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let manager = FileManager.default
+        try manager.createDirectory(at: directory, withIntermediateDirectories: true,
+                                    attributes: [.posixPermissions: 0o700])
+        try? manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
     }
 
     static func write(request: CLIRequest, in directory: URL) throws {

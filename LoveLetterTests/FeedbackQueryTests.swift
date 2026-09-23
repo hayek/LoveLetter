@@ -12,7 +12,7 @@ final class FeedbackQueryTests: XCTestCase {
         let modelConfig = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         context = ModelContext(try ModelContainer(
             for: CachedIssue.self, TriageVerdictRecord.self,
-                FeedbackAttachmentLocal.self,
+                FeedbackAttachmentLocal.self, SeenIssue.self,
             configurations: modelConfig))
     }
 
@@ -60,6 +60,17 @@ final class FeedbackQueryTests: XCTestCase {
     }
 
     // MARK: - Filters
+
+    /// Unread is what the app's unread dot shows: not yet in the seen store.
+    func testUnreadReflectsTheSeenStoreAndFilters() {
+        insert(number: 1)
+        insert(number: 2)
+        context.insert(SeenIssue(repoOwner: "o", repoName: "r", issueNumber: 2))
+        let all = run().items
+        XCTAssertEqual(all.first { $0.number == 1 }?.unread, true)
+        XCTAssertEqual(all.first { $0.number == 2 }?.unread, false)
+        XCTAssertEqual(run { $0.unread = true }.items.map(\.number), [1])
+    }
 
     func testDefaultStateIsOpenOnly() {
         insert(number: 1, state: .open)
