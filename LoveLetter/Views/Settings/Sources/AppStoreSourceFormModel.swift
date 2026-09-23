@@ -73,14 +73,13 @@ final class AppStoreSourceFormModel {
         return trimmed
     }
 
-    /// Persists the PEM to the Keychain (keyed by product id) and writes the IDs onto the product.
-    func save(productID: UUID, into store: ProductStore) async {
+    /// Persists the PEM to the Keychain (keyed by product id), writes the IDs onto the product,
+    /// and restarts its coordinator so the new credentials take effect immediately.
+    func save(productID: UUID, into store: ProductStore,
+              registry: AppStoreReviewCoordinatorRegistry? = nil) async {
         guard let appID = resolvedAppAppleID() else { return }
-        await KeychainService.saveASCKey(pemText, for: productID)
-        guard var product = store.products.first(where: { $0.id == productID }) else { return }
-        product.appStoreIssuerID = issuerID.trimmingCharacters(in: .whitespaces)
-        product.appStoreKeyID = keyID.trimmingCharacters(in: .whitespaces)
-        product.appStoreAppAppleID = appID
-        store.update(product)
+        await ProductSetup.saveAppStoreSource(productID: productID, issuerID: issuerID, keyID: keyID,
+                                              pem: pemText, appAppleID: appID,
+                                              products: store, registry: registry)
     }
 }

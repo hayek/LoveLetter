@@ -345,6 +345,7 @@
 		7D7D1D3EEC3CB0193C215F85 /* ProductResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F7B139DB1257287F3DBAFF /* ProductResolverTests.swift */; };
 		7DBC243CD96FA23BA543537D /* MockIntelligenceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309720B413F93E19D9FD3594 /* MockIntelligenceProvider.swift */; };
 		7E381A8910BB0B0BE2143E7A /* NewVersionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E48246EC91EF2861B91D5068 /* NewVersionSheet.swift */; };
+		7E495E3F815A1135C1403150 /* ProductSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F37D17315E05DCF06D5F319 /* ProductSetup.swift */; };
 		7E89B7CF4CBC0B0B4EC1E003 /* IssueListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A524C9F3F392F1B757122954 /* IssueListView.swift */; };
 		7EF3515FEDF3FCF9FB943CBB /* AppStoreConnectAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C403CBAAC92AE7FA4468E6B6 /* AppStoreConnectAuthTests.swift */; };
 		7F22FE2AB99AA38949FE183A /* FilterPreferenceStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A172E7FEBE84BA9AEE2BDCA /* FilterPreferenceStoreTests.swift */; };
@@ -665,6 +666,7 @@
 		F20B4F468337E567D4B7259E /* FeedbackIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56A101B6541B6002D047687 /* FeedbackIssue.swift */; };
 		F2431554CC5AF93BD6D9F19A /* RepoFetchState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B1FABB47CDBE933C0BD4E13 /* RepoFetchState.swift */; };
 		F25A1BF46D9162F90A09A1C9 /* MailAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F0CAE37A3BBA1F306D4DF5 /* MailAttachment.swift */; };
+		F2CADF42F08ADD7779F854B9 /* ProductSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F37D17315E05DCF06D5F319 /* ProductSetup.swift */; };
 		F2F269A79D0842BB09824A96 /* IssueListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056CBC99ED130BF8908E337D /* IssueListViewModel.swift */; };
 		F2F5673732DE5DAE818AA385 /* IMAPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9045E8C7CE285F5BBC56CC /* IMAPClient.swift */; };
 		F53D761803FE8DABA03AE53A /* LanguageDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2972DF432D86CCEB6D4107F2 /* LanguageDetector.swift */; };
@@ -956,6 +958,7 @@
 		9DB9F1A4C9F7187EAFDED474 /* CLIInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIInstaller.swift; sourceTree = "<group>"; };
 		9E0EF1752413B17DF29880E7 /* GitHubCommentPoster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubCommentPoster.swift; sourceTree = "<group>"; };
 		9E2AEDF9627D3B464B14565B /* AppStoreReviewIdExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreReviewIdExtractor.swift; sourceTree = "<group>"; };
+		9F37D17315E05DCF06D5F319 /* ProductSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductSetup.swift; sourceTree = "<group>"; };
 		9F5DEB430FAAF67B779640F5 /* CLIStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIStoreTests.swift; sourceTree = "<group>"; };
 		9F6DEF399E1FE32791500A7F /* AppStoreReviewSynthesizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreReviewSynthesizer.swift; sourceTree = "<group>"; };
 		9F9A1D58B931429E9B030AF7 /* VersionNameValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionNameValidatorTests.swift; sourceTree = "<group>"; };
@@ -1372,6 +1375,7 @@
 				2395CA08E0C542F187187C4A /* KeychainService.swift */,
 				BDD599AB8A32B9AEA2B7581B /* OSVersionFormat.swift */,
 				63C841069AC4C4F7D350C394 /* ProductMigration.swift */,
+				9F37D17315E05DCF06D5F319 /* ProductSetup.swift */,
 				6A4A07AD7AD87D9C871EB3FD /* ProductStore.swift */,
 				D057DF46F49EECBC0C7102C0 /* QuickLookPresenter.swift */,
 				74BF1A6E0AE2588FDB40568E /* ReleaseEmailTemplate.swift */,
@@ -2321,6 +2325,7 @@
 				AC38D859C4F1D060BCD9EADF /* ProductMigration.swift in Sources */,
 				CABABDCFA43B17807D32F1EB /* ProductResolver.swift in Sources */,
 				A4C46AD3C4F674CB17DC2B12 /* ProductSettingsView.swift in Sources */,
+				F2CADF42F08ADD7779F854B9 /* ProductSetup.swift in Sources */,
 				169EE261AD3A18974BC67F5C /* ProductStore.swift in Sources */,
 				A919285DF8F5819C748C4B5A /* ProjectInspectorModel.swift in Sources */,
 				1D234F2AA1E59BFDEF055AD7 /* ProjectInspectorPanel.swift in Sources */,
@@ -2544,6 +2549,7 @@
 				9982D60F3D7AD666E43F6FBA /* ProductMigration.swift in Sources */,
 				B17271486B54082F5A2D0FF0 /* ProductResolver.swift in Sources */,
 				DE2BFD01C4E2205D96E2531E /* ProductSettingsView.swift in Sources */,
+				7E495E3F815A1135C1403150 /* ProductSetup.swift in Sources */,
 				9768E4159C75C4BB14826DE6 /* ProductStore.swift in Sources */,
 				17D663019B3FFDE8C0F2A676 /* ProjectInspectorModel.swift in Sources */,
 				8627C31F92CD76C8C966DEB1 /* ProjectInspectorPanel.swift in Sources */,

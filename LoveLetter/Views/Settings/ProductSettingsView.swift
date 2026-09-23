@@ -91,14 +91,10 @@ struct ProductSettingsView: View {
         guard !isSaving else { return }
         isSaving = true
         defer { isSaving = false }
-        var updated = product
-        updated.displayName = displayName.trimmingCharacters(in: .whitespaces)
-        updated.mirrorEmailsToGitHub = mirrorEmailsToGitHub
-        updated.redactEmailAddresses = redactEmailAddresses
-        if !token.isEmpty {
-            await KeychainService.save(token: token.trimmingCharacters(in: .whitespaces), for: updated)
-        }
-        store.update(updated)
+        await ProductSetup.saveGeneral(liveProduct, displayName: displayName,
+                                       mirrorEmailsToGitHub: mirrorEmailsToGitHub,
+                                       redactEmailAddresses: redactEmailAddresses,
+                                       token: token, products: store)
     }
 
     // MARK: - Sources section
