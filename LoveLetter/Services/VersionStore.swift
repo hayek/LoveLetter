@@ -68,6 +68,11 @@ final class VersionStore {
     /// Deliberately side-effect-free: `VersionDetailView` calls `sentNotifications` from a computed
     /// property during view body evaluation, so stamping here would mutate models mid-update.
     private func matches(_ row: SentReleaseNotification, _ version: ProjectVersion) -> Bool {
+        Self.belongs(row, to: version)
+    }
+
+    /// The matching rule behind `matches`, for readers without a store (the CLI's read-only one).
+    nonisolated static func belongs(_ row: SentReleaseNotification, to version: ProjectVersion) -> Bool {
         if let rowVersionID = row.versionID { return rowVersionID == version.id }
         return row.repoOwner == version.repoOwner
             && row.repoName == version.repoName

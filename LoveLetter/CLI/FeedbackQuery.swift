@@ -14,10 +14,12 @@ enum FeedbackQuery {
         }))) ?? []
 
         let verdicts = triageByNumber(local: local, owner: owner, repo: repo)
+        let seen = seenNumbers(cloud: cloud, owner: owner, repo: repo)
 
         var issues = ProductResolver.partition(rows).feedback
             .map { $0.toFeedbackIssue() }
             .filter { matches($0, flags: flags, index: index) }
+            .filter { flags.unread == nil || seen.contains($0.number) != flags.unread }
 
         issues.sort { left, right in
             let leftKey = flags.sort == .created ? left.createdAt : (left.updatedAt ?? left.createdAt)
@@ -30,9 +32,21 @@ enum FeedbackQuery {
 
         let total = issues.count
         let page = Array(issues.dropFirst(flags.offset).prefix(flags.limit))
-        let items = page.map { item(from: $0, flags: flags, config: config,
-                                    index: index, triage: verdicts[$0.number]) }
+        let items = page.map { issue in
+            var item = item(from: issue, flags: flags, config: config,
+                            index: index, triage: verdicts[issue.number])
+            item.unread = !seen.contains(issue.number)
+            return item
+        }
         return (items, total)
+    }
+
+    /// What the app has marked seen — the source of its unread dots (`SeenIssueStore`).
+    static func seenNumbers(cloud: ModelContext, owner: String, repo: String) -> Set<Int> {
+        let rows = (try? cloud.fetch(FetchDescriptor<SeenIssue>(predicate: #Predicate {
+            $0.repoOwner == owner && $0.repoName == repo
+        }))) ?? []
+        return Set(rows.map(\.issueNumber))
     }
 
     // MARK: - Filtering

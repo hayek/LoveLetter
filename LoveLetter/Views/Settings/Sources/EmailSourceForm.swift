@@ -247,30 +247,13 @@ struct EmailSourceForm: View {
     }
 
     /// Persists the account and product linkage WITHOUT dismissing the form.
-    /// Returns the persisted account UUID, or nil if nothing changed.
+    /// Returns the persisted account UUID. An account already created this session (e.g. by a
+    /// previous "Test Connection") is reused, so no second orphaned MailAccount is minted.
     @MainActor @discardableResult private func persistAccount() async -> UUID? {
-        let v = model.effectiveAccountValues()
-        let accountID: UUID
-        if let existing = model.existingAccountID {
-            accountStore.update(id: existing) { acc in apply(v, to: acc) }
-            accountID = existing
-        } else if let alreadyCreated = productStore.products.first(where: { $0.id == product.id })?.feedbackInboxAccountID {
-            // An account was already created this session (e.g. a previous "Test Connection" call).
-            // Reuse the same UUID so we don't mint a second orphaned MailAccount + Keychain entry.
-            accountStore.update(id: alreadyCreated) { acc in apply(v, to: acc) }
-            accountID = alreadyCreated
-        } else {
-            let acc = accountStore.add { a in apply(v, to: a) }
-            accountID = acc.id
-        }
-        _ = await KeychainService.saveIMAPPassword(model.password, for: accountID)
-        _ = await KeychainService.saveSMTPPassword(model.password, for: accountID)
-        // Point the product at the inbox account.
-        var updated = product
-        updated.feedbackInboxAccountID = accountID
-        productStore.update(updated)
-        registry?.syncWithAccounts()
-        return accountID
+        await ProductSetup.persistEmailSource(
+            product: product, values: model.effectiveAccountValues(), password: model.password,
+            existingAccountID: model.existingAccountID,
+            products: productStore, mailAccounts: accountStore, mailRegistry: registry)
     }
 
     @MainActor private func save() async {
@@ -278,15 +261,6 @@ struct EmailSourceForm: View {
         didSaveOrRemove = true
         testState = "Saved."
         dismiss()
-    }
-
-    private func apply(_ v: EmailSourceFormModel.AccountValues, to acc: MailAccount) {
-        acc.presetRaw = v.presetRaw
-        acc.imapHost = v.imapHost; acc.imapPort = v.imapPort; acc.imapUsername = v.imapUsername
-        acc.smtpHost = v.smtpHost; acc.smtpPort = v.smtpPort; acc.smtpUsername = v.smtpUsername
-        acc.senderName = v.senderName
-        acc.pollingEnabled = v.pollingEnabled
-        acc.feedbackProductID = v.feedbackProductID
     }
 
     @MainActor private func testConnection() async {
@@ -315,13 +289,9 @@ struct EmailSourceForm: View {
         // (covers accounts minted mid-session by Test Connection whose UUID isn't in
         // model.existingAccountID), then falls back to the id captured at form-init time.
         let accountID = model.resolvedAccountID(liveProductAccountID: liveAccountID)
-        var updated = product
-        updated.feedbackInboxAccountID = nil
-        productStore.update(updated)
-        if let id = accountID, let acc = accountStore.account(id: id) {
-            await accountStore.deleteWithCredentials(acc)
-        }
-        registry?.syncWithAccounts()
+        await ProductSetup.removeEmailSource(product: product, accountID: accountID,
+                                             products: productStore, mailAccounts: accountStore,
+                                             mailRegistry: registry)
         didSaveOrRemove = true
         dismiss()
     }

@@ -7,6 +7,24 @@ enum CLIRequestKind: String, Codable {
     case linkTask
     case unlinkTask
     case respond
+    case deleteAppStoreResponse
+    case markRead
+    case triage
+    case updateTask
+    case deleteTask
+    case addProduct
+    case updateProduct
+    case removeProduct
+    case configureAppStore
+    case configureEmail
+    case removeEmail
+    case createVersion
+    case updateVersion
+    case deleteVersion
+    case releaseVersion
+    case createTemplate
+    case updateTemplate
+    case deleteTemplate
 }
 
 /// Payload values are strings so the envelope stays trivially Codable across the process
@@ -33,12 +51,15 @@ struct CLIResponse: Codable {
     /// rather than leaving the CLI to infer one by sniffing `errorCode` strings.
     var errorExitCode: Int32?
     var warnings: [String] = []
+    /// A not-found failure's valid alternatives (products, versions, accounts…). Optional so a
+    /// reply from an older app build still decodes.
+    var errorCandidates: [String]?
     /// The successful result, already JSON-encoded by the app side.
     var json: String?
 
     init(id: UUID, ok: Bool, errorCode: String? = nil, errorMessage: String? = nil,
          errorHint: String? = nil, errorExitCode: Int32? = nil,
-         warnings: [String] = [], json: String? = nil) {
+         warnings: [String] = [], errorCandidates: [String]? = nil, json: String? = nil) {
         self.id = id
         self.ok = ok
         self.errorCode = errorCode
@@ -46,6 +67,7 @@ struct CLIResponse: Codable {
         self.errorHint = errorHint
         self.errorExitCode = errorExitCode
         self.warnings = warnings
+        self.errorCandidates = errorCandidates
         self.json = json
     }
 }

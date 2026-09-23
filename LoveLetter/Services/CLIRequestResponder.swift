@@ -54,7 +54,8 @@ final class CLIRequestResponder: NSObject {
         } catch let error as CLIError {
             response = CLIResponse(id: requestID, ok: false, errorCode: error.code,
                                    errorMessage: error.message, errorHint: error.hint,
-                                   errorExitCode: error.exitCode.rawValue)
+                                   errorExitCode: error.exitCode.rawValue,
+                                   errorCandidates: error.candidates.isEmpty ? nil : error.candidates)
         } catch {
             response = CLIResponse(id: requestID, ok: false, errorCode: "remote_failure",
                                    errorMessage: error.localizedDescription,
@@ -90,6 +91,44 @@ enum CLIRequestHandlers {
         /// Everything `respond` needs. nil ⇒ replying is unavailable (tests, or a build
         /// without the mail stack).
         var reply: ReplyDependencies?
+        /// The stores and registries behind product, version, template and triage writes.
+        /// nil ⇒ those commands are unavailable.
+        var app: AppDependencies?
+    }
+
+    /// The app's own store and registry instances, so a CLI write lands in exactly the objects
+    /// the windows observe. The closures are the seams tests replace: the test host has no
+    /// Keychain, no network and no mail server.
+    @MainActor
+    struct AppDependencies {
+        let products: ProductStore
+        let versions: VersionStore
+        let gitHubAccounts: GitHubAccountStore
+        let mailAccounts: MailAccountStore
+        let seen: SeenIssueStore
+        let filterStore: FilterPreferenceStore
+        /// The issue-cache context the version rename cascade rewrites.
+        let cacheContext: ModelContext
+        var appStoreRegistry: AppStoreReviewCoordinatorRegistry?
+        var mailRegistry: MailSyncCoordinatorRegistry?
+        var triage: FeedbackTriageCoordinator?
+        /// Builds the release mailer the Release sheet uses. nil ⇒ release emails unavailable.
+        var releaseMailer: (() -> any ReleaseMailing)?
+        var secrets: ProductSecrets = .keychain
+        var milestoneClient = GitHubMilestoneReleaseClient()
+        /// Reads a connected account's OAuth token. nil ⇒ `GitHubAccountStore.token(for:)`.
+        var accountToken: ((GitHubAccount) -> String?)?
+        /// `GET /repos/{owner}/{repo}` as the token sees it — proves access before a product is saved.
+        var fetchRepo: (_ owner: String, _ repo: String, _ token: String) async throws -> GitHubRepo = {
+            try await GitHubAuthService().fetchRepo(owner: $0, repo: $1, token: $2)
+        }
+        /// Builds an App Store Connect client from issuer id, key id and .p8 PEM.
+        var ascClient: (_ issuerID: String, _ keyID: String, _ pem: String) -> any AppStoreConnectClientProtocol = {
+            AppStoreConnectClient(auth: AppStoreConnectAuth(issuerID: $0, keyID: $1, p8PEM: $2))
+        }
+        /// Logs in to the inbox the way the wizard's Test Connection does; throws a
+        /// user-facing message on failure.
+        var testInbox: (EmailSourceFormModel) async throws -> Void = { _ in }
     }
 
     /// The app-side objects `respond` drives. These are the same instances the UI uses, so a
@@ -121,6 +160,42 @@ enum CLIRequestHandlers {
             return try await link(request, deps: deps, removing: true)
         case .respond:
             return try await respond(request, deps: deps)
+        case .deleteAppStoreResponse:
+            return try await deleteAppStoreResponse(request, deps: deps)
+        case .markRead:
+            return try await markRead(request, deps: deps)
+        case .triage:
+            return try await triage(request, deps: deps)
+        case .updateTask:
+            return try await updateTask(request, deps: deps)
+        case .deleteTask:
+            return try await deleteTask(request, deps: deps)
+        case .addProduct:
+            return try await addProduct(request, deps: deps)
+        case .updateProduct:
+            return try await updateProduct(request, deps: deps)
+        case .removeProduct:
+            return try await removeProduct(request, deps: deps)
+        case .configureAppStore:
+            return try await configureAppStore(request, deps: deps)
+        case .configureEmail:
+            return try await configureEmail(request, deps: deps)
+        case .removeEmail:
+            return try await removeEmail(request, deps: deps)
+        case .createVersion:
+            return try await createVersion(request, deps: deps)
+        case .updateVersion:
+            return try await updateVersion(request, deps: deps)
+        case .deleteVersion:
+            return try await deleteVersion(request, deps: deps)
+        case .releaseVersion:
+            return try await releaseVersion(request, deps: deps)
+        case .createTemplate:
+            return try await createTemplate(request, deps: deps)
+        case .updateTemplate:
+            return try await updateTemplate(request, deps: deps)
+        case .deleteTemplate:
+            return try await deleteTemplate(request, deps: deps)
         }
     }
 
@@ -233,10 +308,10 @@ enum CLIRequestHandlers {
     }
 
     /// Drives the same controller the "Respond on App Store" panel uses.
-    private static func respondOnAppStore(_ request: CLIRequest, issue: FeedbackIssue,
-                                          config: ProductConfig, body: String,
-                                          deps: Dependencies,
-                                          reply: ReplyDependencies) async throws -> CLIResponse {
+    /// Builds the controller the "Respond on App Store" panel uses for this review — shared by
+    /// posting a response and deleting one.
+    static func appStoreController(for issue: FeedbackIssue,
+                                   reply: ReplyDependencies) async throws -> AppStoreResponseController {
         guard let reviewId = AppStoreReviewIdExtractor.reviewId(fromBody: issue.rawBody) else {
             throw CLIError.notFound(code: "no_review_id",
                                     message: "Feedback #\(issue.number) carries no App Store review id.",
@@ -254,7 +329,7 @@ enum CLIRequestHandlers {
                                 hint: "Use a key with App Manager access to publish responses.")
         }
 
-        let controller = AppStoreResponseController(
+        return AppStoreResponseController(
             reviewId: reviewId, productID: productID, issueNumber: issue.number,
             repoOwner: context.owner, repoName: context.repo,
             client: context.client, mirrorStore: mirrorStore,
@@ -263,7 +338,14 @@ enum CLIRequestHandlers {
                 await KeychainService.load(for: ProductConfig(displayName: repo, owner: owner, repo: repo))
             },
             readOnly: context.isReadOnly, onReadOnly: context.onReadOnly)
+    }
 
+    private static func respondOnAppStore(_ request: CLIRequest, issue: FeedbackIssue,
+                                          config: ProductConfig, body: String,
+                                          deps: Dependencies,
+                                          reply: ReplyDependencies) async throws -> CLIResponse {
+        let controller = try await appStoreController(for: issue, reply: reply)
+        let reviewId = controller.reviewId
         controller.draft = body
         await controller.submit()
 
@@ -282,7 +364,7 @@ enum CLIRequestHandlers {
              "url": FeedbackQuery.url(for: issue.number, config: config)]))
     }
 
-    private static func appStoreError(_ error: AppStoreResponseController.SubmitError) -> CLIError {
+    static func appStoreError(_ error: AppStoreResponseController.SubmitError) -> CLIError {
         switch error {
         case .tooLong(let over):
             return .usage(CLIUsageError(code: "bad_value",

@@ -152,14 +152,7 @@ struct AppStoreSourceForm: View {
     }
 
     private func runSave() async {
-        await model.save(productID: product.id, into: store)
-        // Restart the coordinator so the new credentials take effect immediately.
-        let configs = store.products.compactMap {
-            ASCProductConfig.make(id: $0.id, owner: $0.owner, repo: $0.repo,
-                                  issuerID: $0.appStoreIssuerID, keyID: $0.appStoreKeyID,
-                                  appAppleID: $0.appStoreAppAppleID)
-        }
-        registry.restart(productID: product.id, configs: configs)
+        await model.save(productID: product.id, into: store, registry: registry)
         await refreshStatus()
     }
 

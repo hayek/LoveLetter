@@ -110,6 +110,20 @@ actor GitHubAuthService {
         return collected
     }
 
+    /// One repository, as `token` sees it. A 404 means the repo doesn't exist or the token
+    /// can't see it — GitHub doesn't say which.
+    func fetchRepo(owner: String, repo: String, token: String) async throws -> GitHubRepo {
+        var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(owner)/\(repo)")!)
+        request.setValue("Bearer \(token)",                 forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw AuthError.apiError((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        return try JSONDecoder().decode(GitHubRepo.self, from: data)
+    }
+
     func fetchCurrentUser(token: String) async throws -> GitHubUser {
         var request = URLRequest(url: URL(string: "https://api.github.com/user")!)
         request.setValue("Bearer \(token)",                 forHTTPHeaderField: "Authorization")

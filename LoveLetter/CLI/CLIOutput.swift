@@ -53,7 +53,7 @@ enum CLIText {
         return items.map { item in
             let tasks = item.tasks.isEmpty ? "" : "  → " + item.tasks.map { "#\($0.number)" }.joined(separator: " ")
             let rating = item.rating.map { " \($0)★" } ?? ""
-            return "#\(pad(String(item.number), 5)) \(pad(item.state, 7))"
+            return (item.unread == true ? "•" : " ") + "#\(pad(String(item.number), 5)) \(pad(item.state, 7))"
                  + "\(pad(clip(item.app ?? "—", 18), 19))"
                  + "\(clip(item.title, titleWidth))\(rating)\(tasks)"
         }.joined(separator: "\n")
@@ -106,6 +106,88 @@ enum CLIText {
         lines.append("")
         lines.append(taskDetail.url)
         return lines.joined(separator: "\n")
+    }
+
+    static func render(versions: [VersionItem]) -> String {
+        guard !versions.isEmpty else { return "No versions." }
+        return versions.map { version in
+            "\(pad(clip(version.name, 14), 15))\(pad(version.state, 10))"
+                + "\(pad("\(version.doneCount)/\(version.taskCount) done", 13))"
+                + clip(version.releaseTitle ?? "", titleWidth)
+        }.joined(separator: "\n")
+    }
+
+    static func render(versionDetail detail: VersionDetailDTO) -> String {
+        let version = detail.version
+        var lines = ["\(version.name)  \(version.releaseTitle ?? "")",
+                     "\(version.state) · \(version.doneCount)/\(version.taskCount) tasks done"
+                        + " · releases to \(detail.releaseRepo)"]
+        if let releasedAt = version.releasedAt {
+            lines.append("released \(CLIOutput.iso8601.string(from: releasedAt)) \(version.releaseTag ?? "")")
+        }
+        lines.append("")
+        lines.append(detail.changelog.isEmpty ? "(no changelog)" : detail.changelog)
+        lines.append("")
+        lines.append(detail.tasks.isEmpty ? "No tasks." : render(tasks: detail.tasks))
+        lines.append("")
+        lines.append(render(recipients: detail.recipients))
+        if !detail.sentEmails.isEmpty {
+            lines.append("")
+            lines.append("sent: " + detail.sentEmails.map { "\($0.email) (\($0.status))" }.joined(separator: ", "))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    static func render(recipients: [ReleaseRecipientDTO]) -> String {
+        guard !recipients.isEmpty else { return "No release recipients." }
+        return recipients.map { recipient in
+            let feedback = recipient.feedback.map { "#\($0)" }.joined(separator: " ")
+            return "\(pad(recipient.email, 32)) \(feedback)\(recipient.alreadyEmailed ? "  (already emailed)" : "")"
+        }.joined(separator: "\n")
+    }
+
+    static func render(templates: [TemplateDTO]) -> String {
+        guard !templates.isEmpty else { return "No reply templates." }
+        return templates.map { "\($0.title)\n  \(clip($0.body.replacingOccurrences(of: "\n", with: " "), 76))" }
+            .joined(separator: "\n\n")
+    }
+
+    static func render(accounts: AccountsDTO) -> String {
+        var lines = ["GitHub: " + (accounts.github.isEmpty ? "none" : accounts.github.map(\.login).joined(separator: ", "))]
+        lines.append("Mail:" + (accounts.mail.isEmpty ? " none" : ""))
+        for mail in accounts.mail {
+            var tags = [mail.service]
+            if mail.isDefaultSender { tags.append("default sender") }
+            if let product = mail.feedbackInboxFor { tags.append("inbox for \(product)") }
+            lines.append("  \(mail.address)  (\(tags.joined(separator: ", ")))")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// A write's result, one top-level field per line.
+    static func render(writeResult: Any?, warnings: [String]) -> String {
+        var lines = ["OK"]
+        if let object = writeResult as? [String: Any] {
+            for key in object.keys.sorted() {
+                lines.append("\(key): \(describe(object[key] ?? NSNull()))")
+            }
+        }
+        lines += warnings.map { "warning: \($0)" }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func describe(_ value: Any) -> String {
+        switch value {
+        case let array as [Any]: return array.map(describe).joined(separator: ", ")
+        case let object as [String: Any]:
+            return "{" + object.keys.sorted().map { "\($0): \(describe(object[$0] ?? NSNull()))" }
+                .joined(separator: ", ") + "}"
+        case is NSNull: return "—"
+        // JSONSerialization hands booleans back as NSNumber, which would print as 1/0.
+        case let number as NSNumber where CFGetTypeID(number) == CFBooleanGetTypeID():
+            return number.boolValue ? "yes" : "no"
+        default: return "\(value)"
+        }
     }
 }
 #endif

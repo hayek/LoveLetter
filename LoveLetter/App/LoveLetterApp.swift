@@ -321,12 +321,42 @@ struct LoveLetterApp: App {
         // files (what the CLI process does) from in here would duplicate the whole stack on
         // the main actor once per request.
         let cliContext = ModelContext(container)
-        let responder = CLIRequestResponder { request in
+        // Product, version and triage writes land in the SAME store instances the windows
+        // observe, so a change made from the terminal shows up in the app at once.
+        var appDeps = CLIRequestHandlers.AppDependencies(
+            products: _store.wrappedValue,
+            versions: _versionStore.wrappedValue,
+            gitHubAccounts: _gitHubAccountStore.wrappedValue,
+            mailAccounts: mailAccountStoreLocal,
+            seen: _seenStore.wrappedValue,
+            filterStore: _filterStore.wrappedValue,
+            cacheContext: _cacheContext.wrappedValue,
+            appStoreRegistry: ascRegistry,
+            triage: triageCoordinatorLocal)
+        appDeps.ascClient = { issuer, keyID, pem in
+            AppStoreConnectClient(auth: AppStoreConnectAuth(issuerID: issuer, keyID: keyID, p8PEM: pem),
+                                  activityLog: activityLogValue)
+        }
+        #if canImport(SwiftMail)
+        appDeps.mailRegistry = launchMode.runsExternalSources ? registry : nil
+        appDeps.testInbox = { model in
+            try await CLIRequestHandlers.testInboxLogin(model, activityLog: activityLogValue)
+        }
+        // Built per release, exactly as `RootView.releaseDeps()` builds the Release sheet's.
+        appDeps.releaseMailer = { [versionStore = _versionStore.wrappedValue] in
+            ReleaseNotificationService(versionStore: versionStore, deps: .init(
+                accountStore: mailAccountStoreLocal, settingsStore: mailSettingsStoreLocal,
+                threadStore: threadStoreLocal, outboundTracker: outboundTrackerLocal,
+                outboundFailures: outboundFailuresLocal, sender: MailSender(),
+                activityLog: activityLogValue, mirror: mirrorLocal))
+        }
+        #endif
+        let responder = CLIRequestResponder { [appDeps] request in
             try await CLIRequestHandlers.handle(
                 request,
                 deps: CLIRequestHandlers.Dependencies(registry: issueRegistry,
                                                       local: cliContext, cloud: cliContext,
-                                                      reply: replyDeps))
+                                                      reply: replyDeps, app: appDeps))
         }
         if !isMock { responder.start() }
         _cliResponder = State(initialValue: responder)

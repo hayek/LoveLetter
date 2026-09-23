@@ -11,11 +11,15 @@ final class TaskService {
 
     private let writer: GitHubIssueWriter
     private let labelClient: GitHubMilestoneReleaseClient
+    /// The Keychain in the app; tests inject a token, since the test host has no Keychain.
+    private let tokenLoader: (ProductConfig) -> String?
 
     init(writer: GitHubIssueWriter = GitHubIssueWriter(),
-         labelClient: GitHubMilestoneReleaseClient = GitHubMilestoneReleaseClient()) {
+         labelClient: GitHubMilestoneReleaseClient = GitHubMilestoneReleaseClient(),
+         tokenLoader: @escaping (ProductConfig) -> String? = { KeychainService.loadSync(for: $0) }) {
         self.writer = writer
         self.labelClient = labelClient
+        self.tokenLoader = tokenLoader
     }
 
     nonisolated static func labels(status: TaskStatus, priority: TaskPriority) -> [String] {
@@ -28,7 +32,7 @@ final class TaskService {
     /// Creates a task issue. Returns its number. Requires online.
     func createTask(repo: ProductConfig, title: String, prose: String, feedbackRefs: [Int],
                     status: TaskStatus, priority: TaskPriority, milestoneNumber: Int?) async throws -> Int {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         try await ensureLabels(repo: repo, token: token)
         return try await writer.createIssue(
             owner: repo.owner, repo: repo.repo, title: title,
@@ -38,7 +42,7 @@ final class TaskService {
     }
 
     func setStatus(repo: ProductConfig, task: TaskItem, status: TaskStatus) async throws {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         let labels = [LoveLetterLabels.task, status.label, task.priority.label]
         // status:done also closes the issue; reopening on any other status.
         let state = (status == .done) ? "closed" : "open"
@@ -47,27 +51,27 @@ final class TaskService {
     }
 
     func setPriority(repo: ProductConfig, task: TaskItem, priority: TaskPriority) async throws {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         try await writer.updateIssue(owner: repo.owner, repo: repo.repo, number: task.number,
             labels: [LoveLetterLabels.task, task.status.label, priority.label], token: token)
     }
 
     func setFeedbackRefs(repo: ProductConfig, task: TaskItem, refs: [Int]) async throws {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         let newBody = FeedbackTaskRefParser.upsert(into: task.body, refs: refs)
         try await writer.updateIssue(owner: repo.owner, repo: repo.repo, number: task.number, body: newBody, token: token)
     }
 
     /// Moves the task to a milestone (e.g. when its card is dropped on a version), touching nothing else.
     func setMilestone(repo: ProductConfig, task: TaskItem, milestoneNumber: Int) async throws {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         try await writer.updateIssue(owner: repo.owner, repo: repo.repo, number: task.number,
             milestoneNumber: .some(milestoneNumber), token: token)
     }
 
     /// Updates the task's title and notes, preserving the machine-managed feedback-refs block.
     func updateContent(repo: ProductConfig, task: TaskItem, title: String, prose: String) async throws {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         let body = FeedbackTaskRefParser.upsert(into: prose, refs: task.feedbackRefs)
         try await writer.updateIssue(owner: repo.owner, repo: repo.repo, number: task.number,
             title: title, body: body, token: token)
@@ -82,7 +86,7 @@ final class TaskService {
     /// milestone on GitHub.
     func applyEdits(repo: ProductConfig, task: TaskItem, title: String, prose: String,
                     status: TaskStatus, priority: TaskPriority, milestoneNumber: Int??) async throws {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         try await ensureLabels(repo: repo, token: token)
         let body = FeedbackTaskRefParser.upsert(into: prose, refs: task.feedbackRefs)
         let state = (status == .done) ? "closed" : "open"
@@ -93,7 +97,7 @@ final class TaskService {
 
     /// Permanently deletes the task's GitHub issue.
     func deleteTask(repo: ProductConfig, task: TaskItem) async throws {
-        guard let token = KeychainService.loadSync(for: repo) else { throw ServiceError.noToken }
+        guard let token = tokenLoader(repo) else { throw ServiceError.noToken }
         try await writer.deleteIssue(owner: repo.owner, repo: repo.repo, number: task.number, token: token)
     }
 
