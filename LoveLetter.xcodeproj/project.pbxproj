@@ -2692,7 +2692,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.amirhayek.AppFeedback;
 				PRODUCT_NAME = LoveLetter;
 				SDKROOT = iphoneos;
@@ -2762,7 +2762,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.amirhayek.AppFeedback;
 				PRODUCT_NAME = LoveLetter;
 				SDKROOT = macosx;
@@ -2843,7 +2843,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.amirhayek.AppFeedback;
 				PRODUCT_NAME = LoveLetter;
 				SDKROOT = iphoneos;
@@ -2891,7 +2891,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.amirhayek.AppFeedback;
 				PRODUCT_NAME = LoveLetter;
 				SDKROOT = macosx;
