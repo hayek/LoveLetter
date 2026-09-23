@@ -62,6 +62,9 @@ struct CLIFlags {
     var redactEmails: Bool?
     var tokenStdin = false
     var account: String?            // a connected GitHub account's login
+    /// products add: create the repository on GitHub (private unless `publicRepo`).
+    var createRepo = false
+    var publicRepo = false
 
     // products app-store
     var issuerID: String?
@@ -231,8 +234,16 @@ enum CLIInvocation {
             guard let repo = flags.repo else {
                 throw CLIUsageError(code: "missing_flag", message: "products add requires --repo owner/repo")
             }
-            guard parseRepo(repo) != nil else {
+            guard let (_, name) = parseRepo(repo) else {
                 throw CLIUsageError(code: "bad_value", message: "--repo must look like owner/repo")
+            }
+            if flags.createRepo && !ProductSetup.isValidRepositoryName(name) {
+                throw CLIUsageError(code: "bad_value",
+                                    message: "'\(name)' isn't a valid repository name",
+                                    hint: "Use only letters, numbers, hyphens, underscores and periods.")
+            }
+            if flags.publicRepo && !flags.createRepo {
+                throw CLIUsageError(code: "conflicting_flags", message: "--public only applies with --create-repo")
             }
             try requireSingleTokenSource(flags)
             return .products(.add(flags))
@@ -704,6 +715,8 @@ enum CLIInvocation {
             case "--text":           flags.json = false
             case "--yes":            flags.yes = true
             case "--token-stdin":    flags.tokenStdin = true
+            case "--create-repo":    flags.createRepo = true
+            case "--public":         flags.publicRepo = true
             case "--password-stdin": flags.passwordStdin = true
             case "--skip-test":      flags.skipTest = true
             case "--remove":         flags.remove = true

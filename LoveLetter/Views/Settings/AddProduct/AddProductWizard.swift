@@ -24,11 +24,11 @@ struct AddProductWizard: View {
 
     @State private var model = AddProductWizardModel()
     @State private var showGitHubLogin = false
-    @State private var showManualRepo = false
     @State private var showKeyImporter = false
     @State private var emailTest: EmailTest = .idle
     @State private var promptCopied = false
     @State private var isCreating = false
+    @State private var createError: String?
 
     private enum EmailTest: Equatable { case idle, running, ok, failed(String) }
 
@@ -36,8 +36,13 @@ struct AddProductWizard: View {
         content
             .onAppear {
                 model.existingRepoKeys = Set(store.products.map { "\($0.owner)/\($0.repo)".lowercased() })
-                // Without a connected account, manual entry is the only way in; don't hide it.
-                if gitHubAccounts.accounts.isEmpty { showManualRepo = true }
+            }
+            .alert("Couldn't Create Product", isPresented: Binding(
+                get: { createError != nil }, set: { if !$0 { createError = nil } }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(createError ?? "")
             }
             .sheet(isPresented: $showGitHubLogin) {
                 GitHubLoginView(accountStore: gitHubAccounts)
@@ -54,9 +59,9 @@ struct AddProductWizard: View {
         #if os(macOS)
         VStack(spacing: 0) {
             header
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 4)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 8)
             stepForm
             Divider()
             HStack {
@@ -76,7 +81,7 @@ struct AddProductWizard: View {
             .controlSize(.large)
             .padding(16)
         }
-        .frame(width: 560, height: 640)
+        .frame(width: 580, height: 620)
         #else
         NavigationStack {
             stepForm
@@ -112,35 +117,39 @@ struct AddProductWizard: View {
             }
             .disabled(!model.canContinue || isCreating)
         } else {
-            Button("Continue") { move(forward: true) }
-                .disabled(!model.canContinue)
+            Button {
+                Task { await continueTapped() }
+            } label: {
+                if model.isCheckingNewRepo { ProgressView().controlSize(.small) } else { Text("Continue") }
+            }
+            .disabled(!model.canContinue)
         }
     }
 
     private var header: some View {
         let info = stepInfo
-        return VStack(spacing: 8) {
-            Image(systemName: info.symbol)
-                .font(.system(size: 30, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(tint.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .contentTransition(.symbolEffect(.replace))
-                .accessibilityHidden(true)
-            Text("Step \(model.stepNumber) of \(model.steps.count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-            Text(info.title)
-                .font(.title2.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
-            Text(info.subtitle)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+        return VStack(alignment: .leading, spacing: 14) {
+            StepProgressBar(count: model.steps.count, current: model.stepNumber, tint: tint)
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: info.symbol)
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(tint.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .contentTransition(.symbolEffect(.replace))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(info.title)
+                        .font(.title3.weight(.semibold))
+                        .accessibilityAddTraits(.isHeader)
+                    Text(info.subtitle)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var tint: Color { model.colorHex.map(Color.init(hex:)) ?? .accentColor }
@@ -166,6 +175,14 @@ struct AddProductWizard: View {
         .clipped()
     }
 
+    /// Continue, after checking a new repository's name is free when that's the step's choice.
+    private func continueTapped() async {
+        if model.step == .repository && model.createsRepository {
+            guard await model.verifyNewRepository() else { return }
+        }
+        move(forward: true)
+    }
+
     private func skip() {
         withAnimation(.snappy) { model.skip() }
     }
@@ -181,19 +198,19 @@ struct AddProductWizard: View {
     private var stepInfo: (symbol: String, title: String, subtitle: String) {
         switch model.step {
         case .repository:
-            ("externaldrive.fill.badge.checkmark", "New Product",
-             "Pick the GitHub repository for this product. Feedback from every source is kept there as issues.")
+            ("externaldrive.fill.badge.checkmark", "Repository",
+             "Feedback from every source is kept in a GitHub repository, as issues.")
         case .sdk:
             ("hammer.fill", "In-App Feedback",
-             "Let people send bug reports and feature requests from inside your app with the Love Letter SDK.")
+             "Let people send bug reports and feature requests from inside your app.")
         case .appStore:
             ("star.bubble.fill", "App Store Reviews",
-             "Connect an App Store Connect API key to read reviews and reply from Love Letter.")
+             "Read reviews and reply to them with an App Store Connect API key.")
         case .email:
             ("envelope.fill", "Email",
-             "Connect a mailbox dedicated to feedback. Each new email becomes a feedback item.")
+             "Each email to a dedicated feedback address becomes a feedback item.")
         case .summary:
-            ("checkmark.seal.fill", "Review", "Name your product and check everything's right.")
+            ("checkmark.seal.fill", "Review", "Name the product and check everything's right.")
         }
     }
 
@@ -210,70 +227,9 @@ struct AddProductWizard: View {
 
     // MARK: Repository
 
-    @ViewBuilder
     private var repositoryStep: some View {
-        if gitHubAccounts.accounts.isEmpty {
-            Section {
-                Button {
-                    showGitHubLogin = true
-                } label: {
-                    Label("Sign in with GitHub", systemImage: "person.badge.key.fill")
-                }
-                .disabled(isMockDataMode)
-            } footer: {
-                Text(isMockDataMode
-                     ? "GitHub sign-in is off while using mock data. Enter the repository manually below."
-                     : "Sign in to pick from your repositories, or enter one manually below.")
-            }
-        } else {
-            Section {
-                AccountRepoPicker(
-                    accounts: gitHubAccounts.accounts,
-                    accountStore: gitHubAccounts,
-                    existingRepoKeys: model.existingRepoKeys,
-                    selectedKey: model.selectedRepoKey,
-                    onSelect: { account, ghRepo in
-                        model.owner = ghRepo.owner.login
-                        model.repo = ghRepo.name
-                        model.token = gitHubAccounts.token(for: account) ?? ""
-                        model.repoIsPrivate = ghRepo.isPrivate
-                    },
-                    onConnectAnother: { if !isMockDataMode { showGitHubLogin = true } }
-                )
-                .listRowInsets(EdgeInsets())
-            }
-        }
-
-        Section {
-            DisclosureGroup("Enter Manually", isExpanded: $showManualRepo) {
-                TextField("Owner", text: manualBinding(\.owner), prompt: Text("owner"))
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    #endif
-                TextField("Repository", text: manualBinding(\.repo), prompt: Text("repo-name"))
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    #endif
-                SecureField("Token", text: $model.token, prompt: Text("ghp_…"))
-            }
-        } footer: {
-            if model.isDuplicateRepository {
-                Label("\(model.repoFullName) is already a product.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-            } else if showManualRepo {
-                Text("The token needs read and write access to the repository's issues. It's stored in your Keychain.")
-            }
-        }
-    }
-
-    /// Manual edits clear the picked repo's privacy flag — it's unknown for a typed-in repo.
-    private func manualBinding(_ keyPath: ReferenceWritableKeyPath<AddProductWizardModel, String>) -> Binding<String> {
-        Binding(
-            get: { model[keyPath: keyPath] },
-            set: { model[keyPath: keyPath] = $0; model.repoIsPrivate = nil }
-        )
+        WizardRepositoryStep(model: model, accountStore: gitHubAccounts, isMockDataMode: isMockDataMode,
+                             onConnectAccount: { if !isMockDataMode { showGitHubLogin = true } })
     }
 
     // MARK: App Store
@@ -495,7 +451,8 @@ struct AddProductWizard: View {
         }
 
         Section {
-            summaryRow("Repository", systemImage: "externaldrive", value: model.repoFullName)
+            summaryRow("Repository", systemImage: "externaldrive",
+                       value: model.createsRepository ? "\(model.repoFullName) (new)" : model.repoFullName)
             summaryRow("In-App Feedback", systemImage: "hammer",
                        value: model.sources.contains(.sdk) ? "Love Letter SDK" : nil)
             summaryRow("App Store Reviews", systemImage: "star.bubble",
@@ -531,9 +488,33 @@ struct AddProductWizard: View {
         defer { isCreating = false }
 
         // Adding the product also starts its App Store coordinator (LoveLetterApp syncs on product ids).
-        let product = await model.create(products: store, mailAccounts: mailAccounts, mailRegistry: mailRegistry)
-        onCreated(product.id)
-        dismiss()
+        do {
+            let product = try await model.create(products: store, mailAccounts: mailAccounts, mailRegistry: mailRegistry)
+            onCreated(product.id)
+            dismiss()
+        } catch {
+            createError = "GitHub couldn't create \(model.repoFullName): \(error.localizedDescription)"
+        }
+    }
+}
+
+/// A segmented bar showing how far through the wizard the user is.
+private struct StepProgressBar: View {
+    let count: Int
+    let current: Int
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(1...count, id: \.self) { index in
+                Capsule()
+                    .fill(index <= current ? AnyShapeStyle(tint) : AnyShapeStyle(.quaternary))
+                    .frame(height: 4)
+            }
+        }
+        .animation(.snappy, value: current)
+        .accessibilityElement()
+        .accessibilityLabel("Step \(current) of \(count)")
     }
 }
 

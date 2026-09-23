@@ -224,6 +224,7 @@ enum CLIRunner {
         case .products(.add(let f)):
             return (.addProduct, ["repo": f.repo ?? "", "name": f.name ?? "", "color": f.colorHex ?? "",
                                   "account": f.account ?? "", "redact": onOff(f.redactEmails),
+                                  "create": f.createRepo ? (f.publicRepo ? "public" : "private") : "",
                                   "token": secret ?? ""])
         case .products(.update(let f)):
             // "" is a real color (back to the default), so it travels as "none".
@@ -571,6 +572,7 @@ enum CLIRunner {
             \(name) products [list] [--refresh] [--text]
             \(name) products add --repo <owner/repo> [--name <n>] [--color <c>]
                                  [--token-stdin | --account <login>] [--redact-emails on|off]
+                                 [--create-repo [--public]]
             \(name) products update --product <p> [--name <n>] [--color <c>] [--mirror-emails on|off]
                                     [--redact-emails on|off] [--token-stdin | --account <login>]
             \(name) products remove --product <p> --yes

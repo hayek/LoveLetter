@@ -141,6 +141,12 @@ enum CLIRequestHandlers {
         var fetchRepo: (_ owner: String, _ repo: String, _ token: String) async throws -> GitHubRepo = {
             try await GitHubAuthService().fetchRepo(owner: $0, repo: $1, token: $2)
         }
+        /// Checks for and creates new feedback repositories (`products add --create-repo`).
+        var repositories: ProductSetup.RepositoryService = .github
+        /// The login a token belongs to — decides whether a new repo's owner is an organization.
+        var tokenLogin: (_ token: String) async throws -> String = {
+            try await GitHubAuthService().fetchCurrentUser(token: $0).login
+        }
         /// Builds an App Store Connect client from issuer id, key id and .p8 PEM.
         var ascClient: (_ issuerID: String, _ keyID: String, _ pem: String) -> any AppStoreConnectClientProtocol = {
             AppStoreConnectClient(auth: AppStoreConnectAuth(issuerID: $0, keyID: $1, p8PEM: $2))

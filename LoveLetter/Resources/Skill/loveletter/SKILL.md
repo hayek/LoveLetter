@@ -165,6 +165,14 @@ Add a product for a GitHub repository (the one the SDK files feedback into):
 
     loveletter products add --repo owner/repo --name "My App" [--color rose]
 
+To create a new feedback repository and add it in one go, add `--create-repo` (private unless
+`--public`; ask which). Love Letter creates it with the SDK's labels (`bug`, `feature-request`,
+`user-submitted`) using the connected account that owns it — or an organization member account —
+then adds the product. `repo_exists` (exit 1) means the name is taken: drop `--create-repo` to
+add that repository as it is, or pick another name.
+
+    loveletter products add --repo owner/myapp-feedback --name "My App" --create-repo
+
 **Never put a token on the command line.** With no token flag, Love Letter uses a connected
 GitHub account that can see the repository (`--account <login>` picks one). Otherwise pipe a
 token with Issues read/write access on stdin — `gh auth token | loveletter products add

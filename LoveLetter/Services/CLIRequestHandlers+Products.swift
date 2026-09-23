@@ -46,7 +46,14 @@ extension CLIRequestHandlers {
                 hint: "Use `\(CLIBranding.commandName) products update --product \(existing.id.uuidString)`."))
         }
 
-        let (token, seen) = try await resolveToken(request, owner: owner, repo: repo, app: app)
+        let resolved: (String, GitHubRepo)
+        if let visibility = request.payload["create"], !visibility.isEmpty {
+            resolved = try await createRepository(request, owner: owner, repo: repo,
+                                                  isPrivate: visibility != "public", app: app)
+        } else {
+            resolved = try await resolveToken(request, owner: owner, repo: repo, app: app)
+        }
+        let (token, seen) = resolved
         let name = (request.payload["name"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let color = request.payload["color"].flatMap { $0.isEmpty ? nil : $0 }
         // Same default as the wizard: redact sender addresses unless the repo is known private.
@@ -103,6 +110,59 @@ extension CLIRequestHandlers {
         throw CLIError.auth(message: "None of the connected GitHub accounts can see \(owner)/\(repo).",
                             hint: "Check the name, pass --account, or pipe a token with --token-stdin. "
                                 + "Connected: \(logins.joined(separator: ", ")).")
+    }
+
+    /// `--create-repo`: creates `owner/repo` (with the SDK's labels) using the piped token, the
+    /// named account, or the connected account whose login or organizations match `owner` — the
+    /// same repository the wizard's New Repository creates.
+    static func createRepository(_ request: CLIRequest, owner: String, repo: String, isPrivate: Bool,
+                                 app: AppDependencies) async throws -> (String, GitHubRepo) {
+        func accountToken(_ account: GitHubAccount) -> String? {
+            app.accountToken?(account) ?? app.gitHubAccounts.token(for: account)
+        }
+        let token: String
+        let login: String
+        if let piped = request.payload["token"], !piped.isEmpty {
+            token = piped
+            do { login = try await app.tokenLogin(piped) } catch {
+                throw CLIError.auth(message: "The token was rejected by GitHub.", hint: "It may be expired or revoked.")
+            }
+        } else {
+            let named = request.payload["account"].flatMap { $0.isEmpty ? nil : $0 }
+            let candidates = app.gitHubAccounts.accounts.filter { account in
+                named.map { account.login.compare($0, options: .caseInsensitive) == .orderedSame } ?? true
+            }
+            // Prefer the account that is the owner; otherwise the first one (it may be an org member).
+            guard let account = candidates.first(where: { $0.login.caseInsensitiveCompare(owner) == .orderedSame })
+                    ?? candidates.first else {
+                throw CLIError.usage(CLIUsageError(
+                    code: "missing_flag", message: "No connected GitHub account to create \(owner)/\(repo) with.",
+                    hint: "Pass --account <login>, or pipe a token with --token-stdin."))
+            }
+            guard let secret = accountToken(account) else { throw noAccountToken(account.login) }
+            token = secret
+            login = account.login
+        }
+
+        if (try? await app.repositories.exists(owner, repo, token)) == true {
+            throw CLIError.usage(CLIUsageError(
+                code: "repo_exists", message: "\(owner)/\(repo) already exists on GitHub.",
+                hint: "Drop --create-repo to add it as it is, or choose another name."))
+        }
+        let isOrganization = login.caseInsensitiveCompare(owner) != .orderedSame
+        let new = ProductSetup.NewRepository(owner: owner, ownerIsOrganization: isOrganization,
+                                             name: repo, isPrivate: isPrivate)
+        let name = (request.payload["name"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            try await ProductSetup.createRepository(new, productName: name.isEmpty ? repo : name,
+                                                    token: token, service: app.repositories)
+        } catch GitHubAuthService.AuthError.apiError(let code) where code == 403 || code == 404 {
+            throw CLIError.auth(message: "GitHub didn't allow creating \(owner)/\(repo) (\(code)).",
+                                hint: "Check you can create repositories in '\(owner)'.")
+        } catch {
+            throw CLIError.remote(message: "Couldn't create \(owner)/\(repo): \(error.localizedDescription)")
+        }
+        return (token, try await probe(owner: owner, repo: repo, token: token, source: "The new repository", app: app))
     }
 
     private static func probe(owner: String, repo: String, token: String, source: String,

@@ -144,4 +144,64 @@ enum ProductSetup {
         account.pollingEnabled = values.pollingEnabled
         account.feedbackProductID = values.feedbackProductID
     }
+
+    // MARK: - New feedback repository
+
+    /// A GitHub repository to create for a product's feedback.
+    struct NewRepository: Equatable {
+        var owner: String
+        /// True when `owner` is an organization rather than the token's own user.
+        var ownerIsOrganization: Bool
+        var name: String
+        var isPrivate: Bool
+    }
+
+    /// The labels the Love Letter SDKs apply to the issues they file, with GitHub's colors.
+    static let feedbackLabels: [(name: String, color: String)] = [
+        ("bug", "d73a4a"), ("feature-request", "a2eeef"), ("user-submitted", "c5def5"),
+    ]
+
+    /// GitHub name rules: letters, digits, `-`, `_` and `.`, up to 100 characters, not `.` or `..`.
+    nonisolated static func isValidRepositoryName(_ name: String) -> Bool {
+        guard (1...100).contains(name.count), name != ".", name != ".." else { return false }
+        return name.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || "-_.".contains($0)) }
+    }
+
+    /// The GitHub calls behind creating a feedback repository; tests inject fakes.
+    struct RepositoryService: Sendable {
+        /// Whether `owner/name` exists (or is otherwise visible to the token).
+        var exists: @Sendable (_ owner: String, _ name: String, _ token: String) async throws -> Bool
+        var create: @Sendable (NewRepository, _ description: String, _ token: String) async throws -> Void
+        var ensureLabel: @Sendable (_ name: String, _ color: String, _ owner: String, _ repo: String,
+                                    _ token: String) async throws -> Void
+
+        static let github = RepositoryService(
+            exists: { owner, name, token in
+                do {
+                    _ = try await GitHubAuthService().fetchRepo(owner: owner, repo: name, token: token)
+                    return true
+                } catch GitHubAuthService.AuthError.apiError(404) {
+                    return false
+                }
+            },
+            create: { new, description, token in
+                _ = try await GitHubAuthService().createRepo(
+                    name: new.name, organization: new.ownerIsOrganization ? new.owner : nil,
+                    isPrivate: new.isPrivate, description: description, token: token)
+            },
+            ensureLabel: { name, color, owner, repo, token in
+                try await GitHubAuthService().ensureLabel(name, color: color, owner: owner, repo: repo, token: token)
+            })
+    }
+
+    /// Creates the repository with the SDK's labels. `productName` goes into its description.
+    /// Only the repository itself must succeed: a missing label is cosmetic, and failing after the
+    /// repo exists would leave the user unable to retry under the same name.
+    static func createRepository(_ new: NewRepository, productName: String, token: String,
+                                 service: RepositoryService = .github) async throws {
+        try await service.create(new, "User feedback for \(productName), collected by Love Letter.", token)
+        for label in feedbackLabels {
+            try? await service.ensureLabel(label.name, label.color, new.owner, new.name, token)
+        }
+    }
 }

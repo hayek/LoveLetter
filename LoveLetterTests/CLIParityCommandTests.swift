@@ -64,6 +64,17 @@ final class CLIParityCommandTests: XCTestCase {
         XCTAssertTrue(flags.tokenStdin)
     }
 
+    func testProductsAddCreateRepo() {
+        guard case .success(.products(.add(let flags)))? =
+                parse("products", "add", "--repo", "o/new-feedback", "--create-repo", "--public")
+        else { return XCTFail("expected products add") }
+        XCTAssertTrue(flags.createRepo); XCTAssertTrue(flags.publicRepo)
+        XCTAssertEqual(request("products", "add", "--repo", "o/r", "--create-repo")?.1["create"], "private")
+        XCTAssertEqual(request("products", "add", "--repo", "o/r")?.1["create"], "")
+        XCTAssertEqual(failure("products", "add", "--repo", "o/r", "--public")?.code, "conflicting_flags")
+        XCTAssertEqual(failure("products", "add", "--repo", "o/bad name", "--create-repo")?.code, "bad_value")
+    }
+
     func testProductsAddDoesNotNeedAProduct() {
         guard case .success(.products(.add))? = parse("products", "add", "--repo", "o/r") else {
             return XCTFail("add creates the product, so --product can't be required")

@@ -166,8 +166,8 @@ final class AddProductWizardModelTests: XCTestCase {
             saveASCKey: { pem, id in await log.record("asc:\(pem):\(id == productID)") },
             saveMailPassword: { password, _ in await log.record("mail:\(password)") })
 
-        let product = await model.create(products: products, mailAccounts: mailAccounts,
-                                         mailRegistry: nil, secrets: secrets)
+        let product = try await model.create(products: products, mailAccounts: mailAccounts,
+                                             mailRegistry: nil, secrets: secrets)
 
         let recorded = await log.entries
         XCTAssertEqual(recorded, ["mail:pw", "asc:PEM:true", "token:ghp_x:before"])
@@ -180,6 +180,100 @@ final class AddProductWizardModelTests: XCTestCase {
         XCTAssertEqual(inbox.senderName, "Acme", "an unnamed sender takes the product's name")
         XCTAssertEqual(inbox.feedbackProductID, productID)
     }
+
+    // MARK: - New repository
+
+    private func newRepoModel() -> AddProductWizardModel {
+        let model = AddProductWizardModel()
+        model.repositoryMode = .new
+        model.owner = "acme"; model.token = "ghp_x"; model.repo = "halo-feedback"
+        return model
+    }
+
+    private func repositories(existing: Set<String> = [], created: RepoLog? = nil,
+                              createError: Error? = nil) -> ProductSetup.RepositoryService {
+        ProductSetup.RepositoryService(
+            exists: { owner, name, _ in existing.contains("\(owner)/\(name)") },
+            create: { new, _, _ in
+                if let createError { throw createError }
+                await created?.record("repo:\(new.owner)/\(new.name):\(new.isPrivate ? "private" : "public")")
+            },
+            ensureLabel: { label, _, _, _, _ in await created?.record("label:\(label)") })
+    }
+
+    func testSwitchingRepositoryModeClearsTheChoiceAndDefaultsNewToPrivate() {
+        let model = modelWithRepo()
+        model.repoIsPrivate = false
+        model.repositoryMode = .new
+        XCTAssertEqual(model.owner, ""); XCTAssertEqual(model.repo, ""); XCTAssertEqual(model.token, "")
+        XCTAssertEqual(model.repoIsPrivate, true)
+        XCTAssertTrue(model.createsRepository)
+    }
+
+    func testNewRepositoryNameMustBeValid() {
+        let model = newRepoModel()
+        XCTAssertTrue(model.canContinue)
+        model.repo = "halo feedback"
+        XCTAssertFalse(model.canContinue)
+        model.repo = ".."
+        XCTAssertFalse(model.canContinue)
+        XCTAssertTrue(ProductSetup.isValidRepositoryName("my-app_feedback.v2"))
+    }
+
+    func testVerifyNewRepositoryRejectsATakenNameUntilItChanges() async {
+        let model = newRepoModel()
+        let taken = await model.verifyNewRepository(service: repositories(existing: ["acme/halo-feedback"]))
+        XCTAssertFalse(taken)
+        XCTAssertNotNil(model.newRepoError)
+        XCTAssertFalse(model.canContinue)
+        model.repo = "halo-feedback-2"
+        XCTAssertNil(model.newRepoError)
+        let free = await model.verifyNewRepository(service: repositories(existing: ["acme/halo-feedback"]))
+        XCTAssertTrue(free)
+    }
+
+    func testCreateMakesTheRepositoryWithLabelsBeforeSavingTheProduct() async throws {
+        let container = try ModelContainer(
+            for: Product.self, Repo.self, MailAccount.self, MailAccountLocalState.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        let products = ProductStore(context: context)
+        let log = RepoLog()
+        let model = newRepoModel()
+        model.goForward(); model.skip(); model.skip(); model.skip()   // → summary
+
+        let noSecrets = ProductSecrets(saveToken: { _, _ in }, saveASCKey: { _, _ in }, saveMailPassword: { _, _ in })
+        let product = try await model.create(products: products, mailAccounts: MailAccountStore(context: context),
+                                             mailRegistry: nil, secrets: noSecrets,
+                                             repositories: repositories(created: log))
+        let entries = await log.entries
+        XCTAssertEqual(entries, ["repo:acme/halo-feedback:private",
+                                 "label:bug", "label:feature-request", "label:user-submitted"])
+        XCTAssertEqual(product.repo, "halo-feedback")
+        XCTAssertFalse(product.redactEmailAddresses, "a new private repo needn't redact")
+    }
+
+    func testFailedRepositoryCreationSavesNothing() async throws {
+        let container = try ModelContainer(
+            for: Product.self, Repo.self, MailAccount.self, MailAccountLocalState.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        let products = ProductStore(context: context)
+        let model = newRepoModel()
+        model.goForward(); model.skip(); model.skip(); model.skip()
+
+        do {
+            try await model.create(products: products, mailAccounts: MailAccountStore(context: context),
+                                   mailRegistry: nil, repositories: repositories(createError: URLError(.notConnectedToInternet)))
+            XCTFail("expected the creation error")
+        } catch {}
+        XCTAssertTrue(products.products.isEmpty)
+    }
+}
+
+private actor RepoLog {
+    private(set) var entries: [String] = []
+    func record(_ entry: String) { entries.append(entry) }
 }
 
 private actor SecretLog {

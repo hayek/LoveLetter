@@ -178,6 +178,56 @@ final class CLIAppHandlerTests: XCTestCase {
         XCTAssertEqual(try decode(ProductSummary.self, response).repo, "Hayek/App-Feedback")
     }
 
+    // MARK: - add --create-repo
+
+    private func repositories(existing: Set<String> = [], log: CreatedRepos) -> ProductSetup.RepositoryService {
+        ProductSetup.RepositoryService(
+            exists: { owner, name, _ in existing.contains("\(owner)/\(name)") },
+            create: { new, _, token in await log.record("\(new.owner)/\(new.name) org:\(new.ownerIsOrganization) private:\(new.isPrivate) via:\(token)") },
+            ensureLabel: { label, _, _, _, _ in await log.record("label:\(label)") })
+    }
+
+    func testCreateRepoCreatesItUnderTheOwningAccountThenAddsTheProduct() async throws {
+        connect("alice"); connect("hayek")
+        let log = CreatedRepos()
+        var app = makeApp()
+        app.repositories = repositories(log: log)
+        _ = try await CLIRequestHandlers.addProduct(
+            request(.addProduct, ["repo": "hayek/halo-feedback", "create": "private"]), deps: makeDeps(app))
+        let entries = await log.entries
+        XCTAssertEqual(entries.first, "hayek/halo-feedback org:false private:true via:token-hayek")
+        XCTAssertEqual(entries.dropFirst(), ["label:bug", "label:feature-request", "label:user-submitted"])
+        XCTAssertEqual(products.products.first?.repo, "halo-feedback")
+        let tokens = await secrets.tokens
+        XCTAssertEqual(tokens.map(\.token), ["token-hayek"])
+    }
+
+    func testCreateRepoForAnOrganizationWithAPipedToken() async throws {
+        let log = CreatedRepos()
+        var app = makeApp()
+        app.repositories = repositories(log: log)
+        app.tokenLogin = { _ in "hayek" }
+        _ = try await CLIRequestHandlers.addProduct(
+            request(.addProduct, ["repo": "acme/fb", "create": "public", "token": "piped"]), deps: makeDeps(app))
+        let entries = await log.entries
+        XCTAssertEqual(entries.first, "acme/fb org:true private:false via:piped")
+    }
+
+    func testCreateRepoRefusesATakenNameAndSavesNothing() async {
+        connect("hayek")
+        let log = CreatedRepos()
+        var app = makeApp()
+        app.repositories = repositories(existing: ["hayek/taken"], log: log)
+        let error = await expectError("repo_exists") {
+            _ = try await CLIRequestHandlers.addProduct(
+                self.request(.addProduct, ["repo": "hayek/taken", "create": "private"]), deps: self.makeDeps(app))
+        }
+        XCTAssertEqual(error?.exitCode, .usage)
+        let entries = await log.entries
+        XCTAssertTrue(entries.isEmpty)
+        XCTAssertTrue(products.products.isEmpty)
+    }
+
     func testAddRedactsUnlessTheRepoIsKnownPrivate() async throws {
         _ = try await CLIRequestHandlers.addProduct(request(.addProduct, ["repo": "o/r", "token": "t"]),
                                                     deps: makeDeps())
@@ -802,3 +852,8 @@ private extension URLRequest {
     }
 }
 #endif
+
+private actor CreatedRepos {
+    private(set) var entries: [String] = []
+    func record(_ entry: String) { entries.append(entry) }
+}

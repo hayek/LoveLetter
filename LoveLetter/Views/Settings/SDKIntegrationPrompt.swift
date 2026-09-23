@@ -45,8 +45,11 @@ enum SDKIntegrationPrompt {
     - which account or organization owns it,
     - its name (suggest `<app-name>-feedback`),
     - whether it's private (recommend private — reports can contain user email addresses).
-    Create it with the best tool available, in this order: a GitHub or git MCP server / skill \
-    if one is connected, otherwise the `gh` CLI (`gh repo create <owner>/<name> --private \
+    Create it with the best tool available, in this order: the `loveletter` CLI if it's \
+    installed and Love Letter is running (`loveletter products add --repo <owner>/<name> --name \
+    "<App Name>" --create-repo`, adding `--public` only if I chose public) — it creates the \
+    repository with the SDK's labels AND adds it to Love Letter, so section 6's add is then \
+    done; otherwise a GitHub or git MCP server / skill if one is connected; otherwise the `gh` CLI (`gh repo create <owner>/<name> --private \
     --description "User feedback for <App>"`; run `gh auth status` first). If neither works, \
     give me the exact steps to create it on github.com and wait until I confirm.
     Then make sure the labels `bug`, `feature-request` and `user-submitted` exist (the SDK applies them).

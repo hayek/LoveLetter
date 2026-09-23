@@ -135,4 +135,38 @@ actor GitHubAuthService {
         }
         return try JSONDecoder().decode(GitHubUser.self, from: data)
     }
+
+    /// Creates a repository owned by the token's user, or by `organization` when given.
+    func createRepo(name: String, organization: String?, isPrivate: Bool, description: String,
+                    token: String) async throws -> GitHubRepo {
+        let path = organization.map { "orgs/\($0)/repos" } ?? "user/repos"
+        var request = URLRequest(url: URL(string: "https://api.github.com/\(path)")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)",                 forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json",               forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "name": name, "private": isPrivate, "description": description, "has_wiki": false,
+        ])
+
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw AuthError.apiError((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        return try JSONDecoder().decode(GitHubRepo.self, from: data)
+    }
+
+    /// Creates `label` in the repo unless it already exists (GitHub answers 422 for a duplicate).
+    func ensureLabel(_ label: String, color: String, owner: String, repo: String, token: String) async throws {
+        var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(owner)/\(repo)/labels")!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)",                 forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json",               forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["name": label, "color": color])
+
+        let (_, response) = try await session.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200...299).contains(status) || status == 422 else { throw AuthError.apiError(status) }
+    }
 }

@@ -25,6 +25,10 @@ struct GitHubRepo: Decodable, Identifiable, Sendable {
 
     struct Owner: Decodable, Sendable {
         let login: String
+        /// "User" or "Organization".
+        var type: String? = nil
+
+        var isOrganization: Bool { type == "Organization" }
     }
 
     enum CodingKeys: String, CodingKey {

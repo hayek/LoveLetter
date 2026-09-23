@@ -37,11 +37,30 @@ final class AddProductWizardModel {
     private(set) var movedForward = true
 
     // Repository
+    enum RepositoryMode: Hashable { case existing, new }
+
+    /// Pick one of the account's repositories, or create a new one on Create Product. Switching
+    /// clears the choice, so a half-picked repo never carries over into the other mode.
+    var repositoryMode: RepositoryMode = .existing {
+        didSet {
+            guard repositoryMode != oldValue else { return }
+            owner = ""; repo = ""; token = ""; newRepoError = nil
+            repoIsPrivate = repositoryMode == .new ? true : nil
+            newRepoOwnerIsOrganization = false
+        }
+    }
+    /// For `.existing` the picked repo; for `.new` the owner and name to create.
     var owner = ""
-    var repo = ""
+    var repo = "" { didSet { if repo != oldValue { newRepoError = nil } } }
     var token = ""
-    /// Set when the repo is picked from a connected account; nil for manual entry.
+    /// Known when the repo was picked from an account or is being created; nil for manual entry.
     var repoIsPrivate: Bool?
+    var newRepoOwnerIsOrganization = false
+    /// Why the new repository's name can't be used, from the check Continue runs.
+    private(set) var newRepoError: String?
+    private(set) var isCheckingNewRepo = false
+
+    var createsRepository: Bool { repositoryMode == .new }
     /// "owner/repo" (lowercased) of products that already exist.
     var existingRepoKeys: Set<String> = []
 
@@ -71,7 +90,9 @@ final class AddProductWizardModel {
 
     var canContinue: Bool {
         switch step {
-        case .repository: hasRepository && !isDuplicateRepository
+        case .repository:
+            hasRepository && !isDuplicateRepository && !isCheckingNewRepo
+                && (!createsRepository || (ProductSetup.isValidRepositoryName(trimmed(repo)) && newRepoError == nil))
         case .appStore:   appStore.canSave
         case .email:      email.canTest
         case .sdk:        true
@@ -98,6 +119,24 @@ final class AddProductWizardModel {
         if step == .summary && (trimmed(name).isEmpty || name == prefilledName) {
             name = suggestedName
             prefilledName = name
+        }
+    }
+
+    /// Run by Continue on the repository step when creating one: makes sure the name is free on
+    /// GitHub, so a clash shows here rather than after every other step. True when it's free.
+    func verifyNewRepository(service: ProductSetup.RepositoryService = .github) async -> Bool {
+        guard step == .repository, createsRepository, canContinue else { return false }
+        isCheckingNewRepo = true
+        defer { isCheckingNewRepo = false }
+        do {
+            if try await service.exists(trimmed(owner), trimmed(repo), trimmed(token)) {
+                newRepoError = "\(repoFullName) already exists. Choose another name, or pick it under Existing."
+                return false
+            }
+            return true
+        } catch {
+            newRepoError = "Couldn't check the name on GitHub: \(error.localizedDescription)"
+            return false
         }
     }
 
@@ -170,11 +209,19 @@ final class AddProductWizardModel {
 
     /// Saves the product, its secrets and (when set up) its email inbox through
     /// `ProductSetup.create` — the same writes `loveletter products add` makes. An inbox with no
-    /// sender name is named after the product.
+    /// sender name is named after the product. A new repository is created on GitHub first; if
+    /// that fails nothing is saved.
     @discardableResult
     func create(products: ProductStore, mailAccounts: MailAccountStore,
                 mailRegistry: MailSyncCoordinatorRegistry?,
-                secrets: ProductSecrets = .keychain) async -> ProductConfig {
+                secrets: ProductSecrets = .keychain,
+                repositories: ProductSetup.RepositoryService = .github) async throws -> ProductConfig {
+        if createsRepository {
+            let new = ProductSetup.NewRepository(owner: trimmed(owner), ownerIsOrganization: newRepoOwnerIsOrganization,
+                                                 name: trimmed(repo), isPrivate: repoIsPrivate ?? true)
+            try await ProductSetup.createRepository(new, productName: displayName, token: trimmed(token),
+                                                    service: repositories)
+        }
         var inbox: ProductSetup.EmailInbox?
         if sources.contains(.email) {
             if email.senderName.isEmpty { email.senderName = displayName }
