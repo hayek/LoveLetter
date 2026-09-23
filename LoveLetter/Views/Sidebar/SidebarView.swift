@@ -16,7 +16,7 @@ struct SidebarView: View {
                 } description: {
                     Text("Add a product to start collecting feedback.")
                 } actions: {
-                    Button("+ Add Product") { onAddRepo() }
+                    Button("Add Product") { onAddRepo() }
                         .buttonStyle(.borderedProminent)
                 }
             } else {
@@ -34,6 +34,26 @@ struct SidebarView: View {
                     .onMove { store.move(fromOffsets: $0, toOffset: $1) }
                 }
                 .listStyle(.sidebar)
+                #if os(macOS)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    Button { onAddRepo() } label: {
+                        Label("Add Product", systemImage: "plus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                }
+                #else
+                .toolbar {
+                    ToolbarItem(placement: .bottomBar) {
+                        Button { onAddRepo() } label: {
+                            Label("Add Product", systemImage: "plus.circle.fill")
+                                .labelStyle(.titleAndIcon)
+                        }
+                    }
+                }
+                #endif
             }
         }
         .navigationTitle("Feedback")

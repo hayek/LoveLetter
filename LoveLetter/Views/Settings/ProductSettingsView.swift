@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The detail pane of the Products settings tab (and the sheet opened from the sidebar
-/// "Settings…" item). Evolved from `AddEditRepoView`: a **General** section (GitHub connection +
+/// "Settings…" item). A **General** section (GitHub connection +
 /// mirror/redact toggles) and a **Sources** section (SDK / App Store / Email).
 struct ProductSettingsView: View {
     @Environment(\.dismiss) private var dismiss

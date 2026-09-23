@@ -4,6 +4,18 @@ import Foundation
 /// their app's project. It drives an interactive session that adds a Love Letter SDK to the app
 /// and sets up the GitHub repository the feedback lands in.
 enum SDKIntegrationPrompt {
+    /// The prompt for a product that's already set up in Love Letter: the repository is decided,
+    /// so the agent skips choosing or creating one and wires the SDK straight to it.
+    static func text(owner: String, repo: String) -> String {
+        """
+        The feedback repository is already chosen and added to Love Letter: \
+        `\(owner)/\(repo)`. Use it — skip creating or choosing a repository in section 2 (still \
+        make sure its labels exist), and skip adding it to Love Letter in section 6.
+
+
+        """ + text
+    }
+
     static let text = """
     You are helping me add in-app feedback to this project with the Love Letter SDK. Users will \
     send bug reports and feature requests from inside the app; each one becomes a GitHub issue in \

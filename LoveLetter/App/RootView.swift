@@ -165,11 +165,11 @@ struct RootView: View {
                 }
             } else {
                 ContentUnavailableView {
-                    Label("No repo selected", systemImage: "tray")
+                    Label("No Product Selected", systemImage: "tray")
                 } description: {
-                    Text("Add a repo in Settings, then select it from the sidebar.")
+                    Text("Select a product in the sidebar, or add a new one.")
                 } actions: {
-                    Button("+ Add Repo") { showAddRepo = true }
+                    Button("Add Product") { showAddRepo = true }
                         .buttonStyle(.borderedProminent)
                 }
             }
@@ -178,7 +178,7 @@ struct RootView: View {
             SettingsView(store: store)
         }
         .sheet(isPresented: $showAddRepo) {
-            AddEditRepoView(store: store)
+            AddProductWizard(store: store) { selection = .allIssues(repoId: $0) }
         }
         #if os(iOS)
         .sheet(item: $productSettingsTarget) { product in

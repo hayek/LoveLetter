@@ -105,7 +105,6 @@ struct EmailSourceForm: View {
     @State private var testState: String = ""
     @State private var didLoad = false
     @State private var showRemoveConfirm = false
-    @State private var showSetupHelp = false
     /// True once the form has been saved or explicitly removed in this session. Used by the
     /// onDisappear cleanup to distinguish a deliberate save from a cancel/navigate-away dismiss.
     @State private var didSaveOrRemove = false
@@ -160,7 +159,7 @@ struct EmailSourceForm: View {
                 }
                 TextField("Sender display name",
                           text: Binding(get: { model.senderName }, set: { model.senderName = $0 }))
-                howToSetUp
+                EmailSetupHelp(preset: model.preset, username: model.username)
             }
             if model.preset == .custom {
                 Section("Advanced") {
@@ -326,18 +325,24 @@ struct EmailSourceForm: View {
         didSaveOrRemove = true
         dismiss()
     }
+}
 
-    // MARK: - Setup help
+/// "How do I set this up?" — the feedback-inbox walkthrough. Shared by the product's Email
+/// source form and the Add Product wizard.
+struct EmailSetupHelp: View {
+    let preset: SMTPCredentials.Preset
+    let username: String
+    @State private var showSetupHelp = false
 
-    @ViewBuilder private var howToSetUp: some View {
+    var body: some View {
         DisclosureGroup(isExpanded: $showSetupHelp) {
             VStack(alignment: .leading, spacing: 10) {
                 SourceHelpStepRow(number: 1, text: "Use a dedicated mailbox for feedback (e.g. feedback@yourapp.com, or a separate Gmail/iCloud address). Every email it receives becomes a feedback item; replies in the same thread attach as comments.")
                 SourceHelpStepRow(number: 2, text: "Pick your provider in Service above — the IMAP host and port fill in automatically. Choose Custom to type them yourself.")
                 SourceHelpStepRow(number: 3, text: "If the account uses two-factor sign-in, your normal password won't work over IMAP. Create an app-specific password:")
-                if let url = model.preset.appPasswordsURL(forEmail: model.username) {
+                if let url = preset.appPasswordsURL(forEmail: username) {
                     Link(destination: url) {
-                        Label("Create an app password for \(model.preset.displayName)", systemImage: "key.fill")
+                        Label("Create an app password for \(preset.displayName)", systemImage: "key.fill")
                     }
                 } else {
                     Text("Generate one in your email provider's account security settings.")

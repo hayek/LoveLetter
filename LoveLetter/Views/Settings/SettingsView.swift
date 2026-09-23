@@ -144,7 +144,7 @@ struct SettingsView: View {
                 navigation.selection = navigation.normalizedSelection(productIDs: ids)
             }
             .sheet(isPresented: $showAdd) {
-                AddEditRepoView(store: store)
+                AddProductWizard(store: store) { navigation.selection = .product($0) }
             }
         } detail: {
             detailContent(selection: navigation.selection)
@@ -297,7 +297,7 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $showAdd) {
-                AddEditRepoView(store: store)
+                AddProductWizard(store: store)
             }
             .task(id: store.products.map(\.id)) {
                 await refreshTokens()

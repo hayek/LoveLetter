@@ -19,7 +19,6 @@ struct AppStoreSourceForm: View {
     @State private var showImporter = false
     @State private var lastSuccessAt: Date?
     @State private var lastError: String?
-    @State private var showKeyHelp = false
 
     // The `.p8` UTI — a PEM text file. `.data` is the safe superset that always lets the Files
     // picker surface a `.p8` on iOS; we also accept the explicit extension type when available.
@@ -88,38 +87,11 @@ struct AppStoreSourceForm: View {
                 .disabled(model.issuerID.isEmpty || model.keyID.isEmpty || model.pemText.isEmpty
                           || model.phase == .testing)
             testResultRow
-            howToGetKeys
+            AppStoreKeyHelp()
         } header: {
             Text("Private Key (.p8)")
         } footer: {
             Text("Your .p8 is stored only in your Keychain — never synced to GitHub.")
-        }
-    }
-
-    @ViewBuilder private var howToGetKeys: some View {
-        DisclosureGroup(isExpanded: $showKeyHelp) {
-            VStack(alignment: .leading, spacing: 10) {
-                SourceHelpStepRow(number: 1, text: "Open App Store Connect → Users and Access → Integrations.")
-                Link(destination: URL(string: "https://appstoreconnect.apple.com/access/integrations/api")!) {
-                    Label("Open Integrations in App Store Connect", systemImage: "arrow.up.right.square")
-                }
-                SourceHelpStepRow(number: 2, text: "First time only: click Request Access, agree to the terms, and Submit. The Account Holder must do this, then wait for approval.")
-                SourceHelpStepRow(number: 3, text: "With Team Keys selected, copy the Issuer ID shown above the keys table (it's the same for your whole team) and paste it into Issuer ID above.")
-                SourceHelpStepRow(number: 4, text: "Click Generate API Key (the ＋). Name it, and under Access choose Admin (or Customer Support) so it can read reviews and post your responses. Then Generate.")
-                SourceHelpStepRow(number: 5, text: "Copy the new key's Key ID from its row and paste it into Key ID.")
-                SourceHelpStepRow(number: 6, text: "Click Download API Key to save the .p8 file — Apple lets you download it only once. Then tap \u{201C}Import .p8 Key\u{2026}\u{201D} above.")
-                SourceHelpStepRow(number: 7, text: "Back here, tap Test to validate and load your apps, pick the app, and Save.")
-                Link(destination: URL(string: "https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api")!) {
-                    Label("Apple's guide: Creating API keys", systemImage: "book")
-                }
-            }
-            .font(.callout)
-            .padding(.vertical, 4)
-        } label: {
-            Text("How do I get these keys?")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture { withAnimation { showKeyHelp.toggle() } }
         }
     }
 
@@ -195,6 +167,39 @@ struct AppStoreSourceForm: View {
         if let status = await registry.status(productID: product.id) {
             lastSuccessAt = status.lastSuccessAt
             lastError = status.lastError
+        }
+    }
+}
+
+/// "How do I get these keys?" — the App Store Connect API key walkthrough. Shared by the
+/// product's App Store source form and the Add Product wizard.
+struct AppStoreKeyHelp: View {
+    @State private var showKeyHelp = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $showKeyHelp) {
+            VStack(alignment: .leading, spacing: 10) {
+                SourceHelpStepRow(number: 1, text: "Open App Store Connect → Users and Access → Integrations.")
+                Link(destination: URL(string: "https://appstoreconnect.apple.com/access/integrations/api")!) {
+                    Label("Open Integrations in App Store Connect", systemImage: "arrow.up.right.square")
+                }
+                SourceHelpStepRow(number: 2, text: "First time only: click Request Access, agree to the terms, and Submit. The Account Holder must do this, then wait for approval.")
+                SourceHelpStepRow(number: 3, text: "With Team Keys selected, copy the Issuer ID shown above the keys table (it's the same for your whole team) and paste it into Issuer ID above.")
+                SourceHelpStepRow(number: 4, text: "Click Generate API Key (the ＋). Name it, and under Access choose Admin (or Customer Support) so it can read reviews and post your responses. Then Generate.")
+                SourceHelpStepRow(number: 5, text: "Copy the new key's Key ID from its row and paste it into Key ID.")
+                SourceHelpStepRow(number: 6, text: "Click Download API Key to save the .p8 file — Apple lets you download it only once. Then tap \u{201C}Import .p8 Key\u{2026}\u{201D} above.")
+                SourceHelpStepRow(number: 7, text: "Back here, tap Test to validate and load your apps, pick the app, and Save.")
+                Link(destination: URL(string: "https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api")!) {
+                    Label("Apple's guide: Creating API keys", systemImage: "book")
+                }
+            }
+            .font(.callout)
+            .padding(.vertical, 4)
+        } label: {
+            Text("How do I get these keys?")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation { showKeyHelp.toggle() } }
         }
     }
 }
