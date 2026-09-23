@@ -45,8 +45,7 @@ final class IssueListViewModel {
         var appVersion: Set<String> = []
         var device: Set<String> = []
         var osVersion: Set<String> = []
-        var issueType: Set<IssueType> = []
-        /// Selected label names (the card's label chips, e.g. "codex-beta"). Matches any-of.
+        /// Selected label names (the card's label chips, e.g. "bug", "codex-beta"). Matches any-of.
         var tags: Set<String> = []
         /// Selected sources. Default = all-on. A full set (all cases) means "no
         /// source filter" — equivalent to empty for `isEmpty`/`visibleIssues`.
@@ -61,7 +60,7 @@ final class IssueListViewModel {
 
         var isEmpty: Bool {
             appVersion.isEmpty && device.isEmpty && osVersion.isEmpty
-                && issueType.isEmpty && tags.isEmpty && !sourcesActive
+                && tags.isEmpty && !sourcesActive
         }
     }
 
@@ -71,7 +70,6 @@ final class IssueListViewModel {
         if !filters.appVersion.isEmpty { list = list.filter { filters.appVersion.contains($0.appVersion ?? "") } }
         if !filters.device.isEmpty     { list = list.filter { filters.device.contains($0.device ?? "") } }
         if !filters.osVersion.isEmpty  { list = list.filter { filters.osVersion.contains($0.osVersion ?? "") } }
-        if !filters.issueType.isEmpty  { list = list.filter { ($0.labels.issueType?.type).map { filters.issueType.contains($0) } ?? false } }
         if !filters.tags.isEmpty {
             list = list.filter { $0.labels.cardChips.contains { filters.tags.contains($0.name) } }
         }
@@ -90,11 +88,6 @@ final class IssueListViewModel {
         }
 
         return list.sorted { $0.createdAt > $1.createdAt }
-    }
-
-    var uniqueIssueTypes: [IssueType] {
-        let types = allIssues.compactMap { $0.labels.issueType?.type }
-        return Array(Set(types)).sorted { $0.displayName < $1.displayName }
     }
 
     func uniqueValues(for keyPath: KeyPath<FeedbackIssue, String?>) -> [String] {
@@ -127,15 +120,13 @@ final class IssueListViewModel {
     /// Feedback-list filter selections for persistence (structured chips only — not `searchQuery`).
     var persistedFeedbackFilters: PersistedFeedbackFilters {
         PersistedFeedbackFilters(appVersion: filters.appVersion, device: filters.device,
-                                 osVersion: filters.osVersion, issueType: filters.issueType,
-                                 tags: filters.tags, sources: filters.sources)
+                                 osVersion: filters.osVersion, tags: filters.tags, sources: filters.sources)
     }
 
     func applyFeedbackFilters(_ dto: PersistedFeedbackFilters) {
         filters.appVersion = dto.appVersion
         filters.device = dto.device
         filters.osVersion = dto.osVersion
-        filters.issueType = dto.issueType
         filters.tags = dto.tags
         filters.sources = dto.sources
     }

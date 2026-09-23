@@ -58,9 +58,19 @@ final class SourceContractTests: XCTestCase {
             IssueLabel(name: "needs-triage", colorHex: "d93f0b"),
         ]
         XCTAssertEqual(labels.cardChips.map(\.name), ["needs-triage"])
-        XCTAssertEqual(labels.withoutTypeAndUserSubmitted.map(\.name),
+        XCTAssertEqual(labels.withoutUserSubmitted.map(\.name),
                        ["source:app-store", "rating:5", "needs-triage"],
                        "the clipboard's label list is unchanged")
+    }
+
+    /// `bug` and `feature-request` are ordinary labels: they render as chips like any other tag.
+    func test_cardChips_keepTypeLabelsAsPlainTags() {
+        let labels = [
+            IssueLabel(name: "bug", colorHex: "d73a4a"),
+            IssueLabel(name: "feature-request", colorHex: "a2eeef"),
+            IssueLabel(name: "user-submitted", colorHex: "ededed"),
+        ]
+        XCTAssertEqual(labels.cardChips.map(\.name), ["bug", "feature-request"])
     }
 
     /// Rows cached before the review-date fix carry the import time in `createdAt`. Reading them

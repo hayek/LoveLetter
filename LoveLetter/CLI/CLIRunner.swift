@@ -274,7 +274,6 @@ enum CLIRunner {
                                            "order": flags.order.rawValue]
         if !flags.labels.isEmpty     { described["label"] = flags.labels.joined(separator: ",") }
         if !flags.sources.isEmpty    { described["source"] = flags.sources.map(\.rawValue).joined(separator: ",") }
-        if !flags.types.isEmpty      { described["type"] = flags.types.map(\.rawValue).joined(separator: ",") }
         if let search = flags.search { described["search"] = search }
         if let since = flags.since   { described["since"] = CLIOutput.iso8601.string(from: since) }
         if let since = flags.updatedSince { described["updatedSince"] = CLIOutput.iso8601.string(from: since) }
@@ -323,7 +322,6 @@ enum CLIRunner {
             Filters:
               --state open|closed|all      default: open
               --source sdk|app-store|email
-              --type bug|feature-request
               --label <name>        repeatable; ORs together (exact match)
               --search <text>       title and description
               --since 7d|YYYY-MM-DD --updated-since ...

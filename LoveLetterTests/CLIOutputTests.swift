@@ -7,7 +7,7 @@ final class CLIOutputTests: XCTestCase {
     private func makeItem(number: Int, title: String, app: String? = "Zcode",
                           rating: Int? = nil, tasks: [TaskRef] = []) -> FeedbackItem {
         FeedbackItem(number: number, title: title, app: app, appVersion: "1.0", source: "sdk",
-                     type: "bug", rating: rating, state: "open",
+                     rating: rating, state: "open",
                      createdAt: Date(timeIntervalSince1970: 1_700_000_000),
                      updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
                      device: "iPhone", os: "iOS 18.6", email: nil, description: "d",

@@ -27,13 +27,13 @@ feedback, so pick by `id` when two of them do.
 ## 2. Read feedback
 
     loveletter feedback --product "Usage for Claude" --limit 20
-    loveletter feedback --product "Usage for Claude" --type bug --since 14d
+    loveletter feedback --product "Usage for Claude" --label bug --since 14d
     loveletter feedback --product "Usage for Claude" --source app-store --max-rating 2
     loveletter feedback --product "Usage for Claude" --search "crash" --no-task
     loveletter feedback show 559 --product "Usage for Claude"
 
 Filters: `--state open|closed|all` `--source sdk|app-store|email`
-`--type bug|feature-request` `--label` `--search` `--since 7d|YYYY-MM-DD` `--updated-since`
+`--label` `--search` `--since 7d|YYYY-MM-DD` `--updated-since`
 `--min-rating` `--max-rating` `--app-version` `--has-task` `--no-task`
 `--sort created|updated` `--order desc|asc` `--limit` (max 200) `--offset`.
 
@@ -103,8 +103,8 @@ refreshes every 15 minutes while Love Letter is running.
   open-issue-centric: issues closed before the app ever saw them were never cached, and a
   cached `closed` can also mean *deleted upstream*. Open-state results are complete.
 - `triage` is the app's own local AI advice, not ground truth. Its `kind` vocabulary
-  (`bug|featureRequest|usability`) is **different** from the label-derived `type`
-  (`bug|feature-request`). Don't conflate them.
+  (`bug|featureRequest|usability`) is **different** from the `bug` / `feature-request`
+  labels, which are ordinary labels like any other. Don't conflate them.
 - Reporter emails are redacted (`a***@icloud.com`). `--include-emails` returns them in full;
   only use it when the user has asked you to contact someone.
 
@@ -115,7 +115,6 @@ refreshes every 15 minutes while Love Letter is running.
 | status | `todo` `in-progress` `done` |
 | priority | `low` `med` `high` |
 | source | `sdk` `app-store` `email` |
-| type | `bug` `feature-request` |
 | state | `open` `closed` `all` |
 
 ## Exit codes

@@ -8,17 +8,6 @@ struct FilterBarView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 MultiSelectFilterChip(
-                    label: "Type",
-                    values: viewModel.uniqueIssueTypes,
-                    selection: Binding(
-                        get: { viewModel.filters.issueType },
-                        set: { viewModel.filters.issueType = $0 }
-                    ),
-                    display: { $0.displayName },
-                    symbol: { $0.systemImage },
-                    accent: accent
-                )
-                MultiSelectFilterChip(
                     label: "Tag",
                     values: viewModel.uniqueTags,
                     selection: binding(for: \.tags),

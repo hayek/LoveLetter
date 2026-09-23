@@ -16,7 +16,6 @@ struct CLIFlags {
     var product: String = ""
     var labels: [String] = []
     var sources: [FeedbackSource] = []
-    var types: [IssueType] = []
     var statuses: [TaskStatus] = []
     var priorities: [TaskPriority] = []
     var state: CLIState = .open
@@ -246,7 +245,6 @@ enum CLIInvocation {
             case "--app-version": flags.appVersion = try nextValue(for: arg)
 
             case "--source":   flags.sources.append(try parseEnum(arg, try nextValue(for: arg)))
-            case "--type":     flags.types.append(try parseEnum(arg, try nextValue(for: arg)))
             case "--status":   flags.statuses.append(try parseEnum(arg, try nextValue(for: arg)))
             case "--priority": flags.priorities.append(try parseEnum(arg, try nextValue(for: arg)))
             case "--state":    flags.state = try parseEnum(arg, try nextValue(for: arg))

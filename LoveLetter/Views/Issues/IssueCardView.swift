@@ -61,8 +61,6 @@ struct IssueCardView: View {
     var onToggleAppVersion: ((String) -> Void)? = nil
     var onToggleDevice: ((String) -> Void)? = nil
     var onToggleOSVersion: ((String) -> Void)? = nil
-    var activeIssueType: Set<IssueType> = []
-    var onToggleIssueType: ((IssueType) -> Void)? = nil
     var activeTags: Set<String> = []
     var onToggleTag: ((String) -> Void)? = nil
     var targetLanguageCode: String = "en"
@@ -494,15 +492,6 @@ struct IssueCardView: View {
                 .foregroundStyle(.tertiary)
                 .fixedSize()
             HStack(spacing: 4) {
-                if let typed = issue.labels.issueType {
-                    IssueTypeIconButton(
-                        type: typed.type,
-                        isActive: activeIssueType.contains(typed.type),
-                        onTap: onToggleIssueType.map { handler in
-                            { onInteract?(); handler(typed.type) }
-                        }
-                    )
-                }
                 Text("#\(issue.number)")
                     .font(.system(size: 11, weight: .medium))
                 Button {
@@ -607,27 +596,6 @@ struct IssueBodyText: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-private struct IssueTypeIconButton: View {
-    let type: IssueType
-    let isActive: Bool
-    let onTap: (() -> Void)?
-
-    var body: some View {
-        let icon = Image(systemName: type.systemImage)
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(isActive ? AnyShapeStyle(Color.primary.opacity(0.75)) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
-            .help(type.displayName)
-            .accessibilityLabel("Filter by \(type.displayName)")
-
-        if let onTap {
-            Button(action: onTap) { icon }
-                .buttonStyle(.plain)
-        } else {
-            icon
         }
     }
 }

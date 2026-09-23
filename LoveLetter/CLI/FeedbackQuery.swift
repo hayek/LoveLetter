@@ -44,9 +44,6 @@ enum FeedbackQuery {
         case .all:    break
         }
         if !flags.sources.isEmpty, !flags.sources.contains(issue.source) { return false }
-        if !flags.types.isEmpty {
-            guard let type = issue.labels.issueType?.type, flags.types.contains(type) else { return false }
-        }
         if !flags.labels.isEmpty {
             // Repeating a flag ORs its values, like every other repeatable filter here.
             let names = Set(issue.labels.map(\.name))
@@ -82,7 +79,6 @@ enum FeedbackQuery {
             app: issue.appName,
             appVersion: issue.appVersion,
             source: issue.source.rawValue,
-            type: issue.labels.issueType?.type.rawValue,
             rating: issue.rating,
             state: (issue.state ?? .open).rawValue,
             createdAt: issue.createdAt,
@@ -104,7 +100,7 @@ enum FeedbackQuery {
         let issue = try rawIssue(number: number, config: config, local: local)
         return FeedbackDetail(
             number: issue.number, title: issue.title, app: issue.appName, appVersion: issue.appVersion,
-            source: issue.source.rawValue, type: issue.labels.issueType?.type.rawValue,
+            source: issue.source.rawValue,
             rating: issue.rating, state: (issue.state ?? .open).rawValue,
             createdAt: issue.createdAt, updatedAt: issue.updatedAt ?? issue.createdAt,
             device: issue.device, os: issue.osVersion,

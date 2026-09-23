@@ -70,10 +70,11 @@ final class FeedbackQueryTests: XCTestCase {
     }
 
     func testDifferentFlagsAndTogether() {
-        insert(number: 1, labels: ["bug"], state: .open)
-        insert(number: 2, labels: ["feature-request"], state: .open)
-        insert(number: 3, labels: ["bug"], state: .closed)
-        XCTAssertEqual(run { $0.labels = ["bug"]; $0.types = [.bug] }.items.map(\.number), [1])
+        insert(number: 1, labels: ["bug"], state: .open, source: .sdk)
+        insert(number: 2, labels: ["feature-request"], state: .open, source: .sdk)
+        insert(number: 3, labels: ["bug"], state: .closed, source: .sdk)
+        insert(number: 4, labels: ["bug"], state: .open, source: .email)
+        XCTAssertEqual(run { $0.labels = ["bug"]; $0.sources = [.sdk] }.items.map(\.number), [1])
     }
 
     /// `--label` is repeatable and ORs — SKILL.md promises that for every repeatable flag.
@@ -219,12 +220,10 @@ final class FeedbackQueryTests: XCTestCase {
         XCTAssertEqual(run().items.first?.url, "https://github.com/o/r/issues/559")
     }
 
-    func testTypeComesFromLabels() {
+    /// `feature-request` is an ordinary label: it rides in `labels`, with no separate `type` field.
+    func testTypeLabelsAreReportedAsPlainLabels() {
         insert(number: 1, labels: ["feature-request"])
-        insert(number: 2, labels: [])
-        let items = run().items
-        XCTAssertEqual(items.first(where: { $0.number == 1 })?.type, "feature-request")
-        XCTAssertNil(items.first(where: { $0.number == 2 })?.type)
+        XCTAssertEqual(run().items.first?.labels, ["feature-request"])
     }
 
     // MARK: - Detail

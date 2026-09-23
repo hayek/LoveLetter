@@ -17,7 +17,6 @@ struct PersistedFeedbackFilters: Codable, Equatable {
     var appVersion: Set<String> = []
     var device: Set<String> = []
     var osVersion: Set<String> = []
-    var issueType: Set<IssueType> = []
     var tags: Set<String> = []
     /// Selected feedback sources. Default = all-on (every case). Persisted as a
     /// `[String]` of raw values so it stays CloudKit/JSON-friendly; an absent key
@@ -25,21 +24,19 @@ struct PersistedFeedbackFilters: Codable, Equatable {
     var sources: Set<FeedbackSource> = Set(FeedbackSource.allCases)
 
     enum CodingKeys: String, CodingKey {
-        case appVersion, device, osVersion, issueType, tags, sources
+        case appVersion, device, osVersion, tags, sources
     }
 
     init(
         appVersion: Set<String> = [],
         device: Set<String> = [],
         osVersion: Set<String> = [],
-        issueType: Set<IssueType> = [],
         tags: Set<String> = [],
         sources: Set<FeedbackSource> = Set(FeedbackSource.allCases)
     ) {
         self.appVersion = appVersion
         self.device = device
         self.osVersion = osVersion
-        self.issueType = issueType
         self.tags = tags
         self.sources = sources
     }
@@ -49,7 +46,6 @@ struct PersistedFeedbackFilters: Codable, Equatable {
         appVersion = try c.decodeIfPresent(Set<String>.self, forKey: .appVersion) ?? []
         device = try c.decodeIfPresent(Set<String>.self, forKey: .device) ?? []
         osVersion = try c.decodeIfPresent(Set<String>.self, forKey: .osVersion) ?? []
-        issueType = try c.decodeIfPresent(Set<IssueType>.self, forKey: .issueType) ?? []
         tags = try c.decodeIfPresent(Set<String>.self, forKey: .tags) ?? []
         let raw = try c.decodeIfPresent([String].self, forKey: .sources)
         if let raw {
@@ -64,7 +60,6 @@ struct PersistedFeedbackFilters: Codable, Equatable {
         try c.encode(appVersion, forKey: .appVersion)
         try c.encode(device, forKey: .device)
         try c.encode(osVersion, forKey: .osVersion)
-        try c.encode(issueType, forKey: .issueType)
         try c.encode(tags, forKey: .tags)
         try c.encode(sources.map(\.rawValue).sorted(), forKey: .sources)
     }

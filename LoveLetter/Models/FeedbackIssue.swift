@@ -10,43 +10,19 @@ enum IssueState: String, Codable, Sendable {
     case closed
 }
 
-enum IssueType: String, Codable, CaseIterable {
-    case bug
-    case featureRequest = "feature-request"
-
-    var displayName: String {
-        switch self {
-        case .bug: return "Bug"
-        case .featureRequest: return "Feature"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .bug: return "ant.fill"
-        case .featureRequest: return "sparkles"
-        }
-    }
-}
-
 extension Array where Element == IssueLabel {
-    var issueType: (type: IssueType, color: String)? {
-        for label in self {
-            if let t = IssueType(rawValue: label.name) { return (t, label.colorHex) }
-        }
-        return nil
-    }
-
-    var withoutTypeAndUserSubmitted: [IssueLabel] {
-        filter { IssueType(rawValue: $0.name) == nil && $0.name != "user-submitted" }
+    /// Labels minus the SDK's `user-submitted` marker, which every SDK issue carries. `bug` and
+    /// `feature-request` are ordinary labels here, like any other tag.
+    var withoutUserSubmitted: [IssueLabel] {
+        filter { $0.name != "user-submitted" }
     }
 
     /// Chips rendered on a feedback card. Also drops the `source:`/`rating:` markers the App Store
     /// synthesizer writes: the card header already shows the source glyph and the star rating, so
     /// repeating them as raw label chips is what made an App Store card look unlike every other
-    /// card. `withoutTypeAndUserSubmitted` keeps them for the clipboard's flat badge list.
+    /// card. `withoutUserSubmitted` keeps them for the clipboard's flat badge list.
     var cardChips: [IssueLabel] {
-        withoutTypeAndUserSubmitted.filter {
+        withoutUserSubmitted.filter {
             !$0.name.hasPrefix("source:") && !$0.name.hasPrefix("rating:")
         }
     }

@@ -82,7 +82,6 @@ struct FeedbackItem: Codable, Equatable {
     let app: String?
     let appVersion: String?
     let source: String
-    let type: String?
     let rating: Int?
     let state: String
     let createdAt: Date
@@ -117,7 +116,6 @@ struct FeedbackDetail: Codable, Equatable {
     let app: String?
     let appVersion: String?
     let source: String
-    let type: String?
     let rating: Int?
     let state: String
     let createdAt: Date

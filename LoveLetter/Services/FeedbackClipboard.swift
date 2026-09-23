@@ -22,10 +22,7 @@ enum FeedbackClipboard {
         }
 
         var badges: [String] = [issue.createdAt.formatted(date: .abbreviated, time: .shortened)]
-        if let typed = issue.labels.issueType {
-            badges.append(typed.type.displayName)
-        }
-        for label in issue.labels.withoutTypeAndUserSubmitted {
+        for label in issue.labels.withoutUserSubmitted {
             badges.append(label.name)
         }
         if let app = issue.appName { badges.append(app) }

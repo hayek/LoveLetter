@@ -69,7 +69,7 @@ final class FilterPreferenceStoreTests: XCTestCase {
         // A bundle encoded WITHOUT the sources field (legacy JSON) must decode to all-on. The
         // retired `appFilter` key is still present here on purpose: rows saved before the
         // one-app-per-product change must keep decoding, with the extra key ignored.
-        let legacyJSON = #"{"appVersion":[],"device":[],"osVersion":[],"issueType":[],"appFilter":["MyApp"]}"#
+        let legacyJSON = #"{"appVersion":[],"device":[],"osVersion":[],"appFilter":["MyApp"]}"#
         let data = legacyJSON.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(PersistedFeedbackFilters.self, from: data)
         XCTAssertEqual(decoded.sources, Set(FeedbackSource.allCases))

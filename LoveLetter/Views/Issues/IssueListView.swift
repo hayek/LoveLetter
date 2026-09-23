@@ -358,10 +358,6 @@ struct IssueListView: View {
             onToggleOSVersion: { value in
                 viewModel.filters.osVersion.toggleMembership(value)
             },
-            activeIssueType: viewModel.filters.issueType,
-            onToggleIssueType: { type in
-                viewModel.filters.issueType.toggleMembership(type)
-            },
             activeTags: viewModel.filters.tags,
             onToggleTag: { name in
                 viewModel.filters.tags.toggleMembership(name)
