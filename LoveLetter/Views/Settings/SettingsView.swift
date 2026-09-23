@@ -11,6 +11,8 @@ enum SettingsSelection: Hashable {
     case intelligence
     case notifications
     case cli
+    /// DEBUG-only pane; the row and detail are fenced, the case itself is harmless in Release.
+    case debug
 
     var productID: UUID? {
         if case .product(let id) = self { return id }
@@ -115,6 +117,12 @@ struct SettingsView: View {
                     SettingsIconRow(title: "CLI & AI Skill", systemImage: "terminal.fill", tileColor: .gray)
                         .tag(SettingsSelection.cli)
                 }
+                #if DEBUG
+                Section {
+                    SettingsIconRow(title: "Debug", systemImage: "ladybug.fill", tileColor: .orange)
+                        .tag(SettingsSelection.debug)
+                }
+                #endif
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
             .onAppear {
@@ -168,6 +176,12 @@ struct SettingsView: View {
             }
         case .cli:
             CLISettingsView()
+        case .debug:
+            #if DEBUG
+            DebugSettingsView()
+            #else
+            EmptyView()
+            #endif
         case nil:
             noProductsView
         }
@@ -240,6 +254,17 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                #if DEBUG
+                Section {
+                    NavigationLink {
+                        DebugSettingsView()
+                            .navigationTitle("Debug")
+                    } label: {
+                        Label("Debug", systemImage: "ladybug")
+                    }
+                }
+                #endif
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)

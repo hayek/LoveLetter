@@ -60,6 +60,7 @@
 		18963BFADBFD24736A155190 /* UnreadSummaryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284C57CD59419BCDB5F36CD2 /* UnreadSummaryViewModel.swift */; };
 		18BD4C9007C1FFE200EEAEBF /* AppRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4D2C5A852CADFAEABFD53D /* AppRowView.swift */; };
 		18DD7530CC30E8744BD0C873 /* IMAPClientProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC31CB7874BF9ACC174DB967 /* IMAPClientProvider.swift */; };
+		19BF7DD06974CC99B3E1F794 /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C184B1242449F63083E957 /* DebugSettingsView.swift */; };
 		1A1283EBFF878EF2796CC226 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFABC1C0EF943D323462A3D /* RootView.swift */; };
 		1A784F5AC593DCE3EB2E0C88 /* AppStoreSourceForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C572DABB7CC291EDC33E941 /* AppStoreSourceForm.swift */; };
 		1AB10EF2D58302F671EDB38D /* SettingsNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A821C0BAB17B3BD7233A20EC /* SettingsNavigationTests.swift */; };
@@ -322,6 +323,7 @@
 		7AAD7D46CC3F45AC29D9DE68 /* FeedbackIssueFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 188BFEB3C5A82F4B0131DF2E /* FeedbackIssueFixtures.swift */; };
 		7AB0E86292BB646657A36D8C /* ComposeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 784ED2AD6D398601AD59C82C /* ComposeRequest.swift */; };
 		7B30642D060B41744A1C89DA /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2395CA08E0C542F187187C4A /* KeychainService.swift */; };
+		7B559B5B9B15D803A5E5DA7D /* DebugSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C184B1242449F63083E957 /* DebugSettingsView.swift */; };
 		7B55ACCD76D3E5C3E70F360E /* Product.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4C68125DCA8826F778DF6F /* Product.swift */; };
 		7BAABDF576112F922D21422D /* CLIInvocationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE80A70DFF0CB91605A910E /* CLIInvocationTests.swift */; };
 		7BAE2EEC9D90757E737DB1E3 /* HTMLSanitizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2752FEFF4F5B1C7FE083F59B /* HTMLSanitizerTests.swift */; };
@@ -746,6 +748,7 @@
 		217B140BB9D7B6EC5B987B5B /* ReplyTemplateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyTemplateStore.swift; sourceTree = "<group>"; };
 		2395CA08E0C542F187187C4A /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		2459FF01389BB408C8370AE8 /* AttachmentChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChipView.swift; sourceTree = "<group>"; };
+		24C184B1242449F63083E957 /* DebugSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSettingsView.swift; sourceTree = "<group>"; };
 		24D7CFA676755F5FE09926BB /* DeviceName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceName.swift; sourceTree = "<group>"; };
 		2512C1EA254DCAD95843FED6 /* TriageModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageModels.swift; sourceTree = "<group>"; };
 		254521886454C6D57D30BC87 /* ProductMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductMigrationTests.swift; sourceTree = "<group>"; };
@@ -1216,6 +1219,7 @@
 				8499B84CC6AD98A765E2AE33 /* AddEmailAccountSheet.swift */,
 				042AC445108C0E66B97EC8E7 /* CLISettingsView.swift */,
 				5A1F197825D55497F4D30688 /* CloudSyncStatusRow.swift */,
+				24C184B1242449F63083E957 /* DebugSettingsView.swift */,
 				BDE86C8F0965A9DDC2F2B5FC /* EmailAccountEditor.swift */,
 				DBC5C65123849F86300FEC49 /* EmailAccountEditorSheet.swift */,
 				45335B291F9431738BE3BD57 /* EmailAccountList.swift */,
@@ -2058,6 +2062,7 @@
 				10E96FED613EADA43B97F9B0 /* ComposeRequest.swift in Sources */,
 				2710B0E383FF8C947150CCB2 /* CreateTaskSheet.swift in Sources */,
 				B49F59945E0A03D063F78290 /* DebugSettings.swift in Sources */,
+				7B559B5B9B15D803A5E5DA7D /* DebugSettingsView.swift in Sources */,
 				6B7D1460D10753807D7DCAD5 /* DetailDesign.swift in Sources */,
 				4BD4577903CC251BBF91D9BA /* DeviceName.swift in Sources */,
 				571D57150196C06A493DB4AC /* EmailAccountEditor.swift in Sources */,
@@ -2274,6 +2279,7 @@
 				7AB0E86292BB646657A36D8C /* ComposeRequest.swift in Sources */,
 				ED182C8337904670D9892C5D /* CreateTaskSheet.swift in Sources */,
 				33C591CE11CB68306F3E345C /* DebugSettings.swift in Sources */,
+				19BF7DD06974CC99B3E1F794 /* DebugSettingsView.swift in Sources */,
 				E127AFEB189AA12CD2DB1F23 /* DetailDesign.swift in Sources */,
 				150FC3F0827FCEF26AE15885 /* DeviceName.swift in Sources */,
 				991E7E974D6D1AFD1B7BD799 /* EmailAccountEditor.swift in Sources */,

@@ -20,7 +20,7 @@ struct SettingsNavigationTests {
 
     @Test func normalizedKeepsNonProductSelections() {
         let nav = SettingsNavigation()
-        for sel in [SettingsSelection.email, .intelligence, .notifications] {
+        for sel in [SettingsSelection.email, .intelligence, .notifications, .cli, .debug] {
             nav.selection = sel
             #expect(nav.normalizedSelection(productIDs: []) == sel)
         }
