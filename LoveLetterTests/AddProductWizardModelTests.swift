@@ -197,6 +197,8 @@ final class AddProductWizardModelTests: XCTestCase {
             create: { new, _, _ in
                 if let createError { throw createError }
                 await created?.record("repo:\(new.owner)/\(new.name):\(new.isPrivate ? "private" : "public")")
+                return GitHubRepo(id: 1, name: new.name, fullName: "\(new.owner)/\(new.name)",
+                                  isPrivate: new.isPrivate, owner: .init(login: new.owner))
             },
             ensureLabel: { label, _, _, _, _ in await created?.record("label:\(label)") })
     }
@@ -268,6 +270,103 @@ final class AddProductWizardModelTests: XCTestCase {
             XCTFail("expected the creation error")
         } catch {}
         XCTAssertTrue(products.products.isEmpty)
+    }
+
+    func testAFailedNameCheckShowsWhyButCanBeRetried() async {
+        let model = newRepoModel()
+        let offline = ProductSetup.RepositoryService(
+            exists: { _, _, _ in throw URLError(.notConnectedToInternet) },
+            create: { _, _, _ in throw URLError(.notConnectedToInternet) },
+            ensureLabel: { _, _, _, _, _ in })
+        let ok = await model.verifyNewRepository(service: offline)
+        XCTAssertFalse(ok)
+        XCTAssertNotNil(model.newRepoError)
+        XCTAssertTrue(model.canContinue, "a check that couldn't run mustn't lock Continue until the name changes")
+        let retried = await model.verifyNewRepository(service: repositories())
+        XCTAssertTrue(retried)
+    }
+
+    func testChangingTheOwnerClearsATakenName() async {
+        let model = newRepoModel()
+        _ = await model.verifyNewRepository(service: repositories(existing: ["acme/halo-feedback"]))
+        XCTAssertFalse(model.canContinue)
+        model.owner = "hayek"
+        XCTAssertNil(model.newRepoError)
+        XCTAssertTrue(model.canContinue)
+    }
+
+    func testAnEditDuringTheNameCheckVoidsItsAnswer() async {
+        let model = newRepoModel()
+        let service = ProductSetup.RepositoryService(
+            exists: { _, _, _ in
+                await MainActor.run { model.repo = "halo-feedback-2" }
+                return true
+            },
+            create: { _, _, _ in throw URLError(.unknown) },
+            ensureLabel: { _, _, _, _, _ in })
+        let ok = await model.verifyNewRepository(service: service)
+        XCTAssertFalse(ok)
+        XCTAssertNil(model.newRepoError, "the answer was about the old name")
+        XCTAssertTrue(model.canContinue)
+    }
+
+    func testANameTakenAtCreateIsReportedOnTheRepositoryStep() async throws {
+        let container = try ModelContainer(
+            for: Product.self, Repo.self, MailAccount.self, MailAccountLocalState.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        let model = newRepoModel()
+        model.goForward(); model.skip(); model.skip(); model.skip()
+
+        do {
+            try await model.create(products: ProductStore(context: context),
+                                   mailAccounts: MailAccountStore(context: context), mailRegistry: nil,
+                                   repositories: repositories(createError: GitHubAuthService.ValidationFailed(
+                                       message: "name already exists on this account")))
+            XCTFail("expected the creation error")
+        } catch let error as ProductSetup.CreateRepositoryError {
+            XCTAssertEqual(error, .nameTaken("acme/halo-feedback"))
+        }
+        model.goBack(); model.goBack(); model.goBack(); model.goBack()
+        XCTAssertEqual(model.step, .repository)
+        XCTAssertNotNil(model.newRepoError)
+        XCTAssertFalse(model.canContinue)
+    }
+
+    func testCreateRepositoryMapsGitHubsRefusals() async {
+        let new = ProductSetup.NewRepository(owner: "acme", ownerIsOrganization: true, name: "fb", isPrivate: true)
+        func outcome(_ error: Error) async -> ProductSetup.CreateRepositoryError? {
+            do {
+                try await ProductSetup.createRepository(new, productName: "P", token: "t",
+                                                        service: repositories(createError: error))
+                return nil
+            } catch { return error as? ProductSetup.CreateRepositoryError }
+        }
+        let taken = await outcome(GitHubAuthService.ValidationFailed(message: "name already exists on this account"))
+        XCTAssertEqual(taken, .nameTaken("acme/fb"))
+        let forbidden = await outcome(GitHubAuthService.AuthError.apiError(403))
+        XCTAssertEqual(forbidden, .notAllowed(owner: "acme"))
+        let other = await outcome(GitHubAuthService.ValidationFailed(message: "visibility can't be private"))
+        XCTAssertEqual(other, .rejected("visibility can't be private"))
+    }
+
+    func testCreateDoesNotMakeTheSameRepositoryTwice() async throws {
+        let container = try ModelContainer(
+            for: Product.self, Repo.self, MailAccount.self, MailAccountLocalState.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        let log = RepoLog()
+        let model = newRepoModel()
+        model.goForward(); model.skip(); model.skip(); model.skip()
+        let noSecrets = ProductSecrets(saveToken: { _, _ in }, saveASCKey: { _, _ in }, saveMailPassword: { _, _ in })
+
+        for _ in 0..<2 {
+            try await model.create(products: ProductStore(context: context),
+                                   mailAccounts: MailAccountStore(context: context), mailRegistry: nil,
+                                   secrets: noSecrets, repositories: repositories(created: log))
+        }
+        let repos = await log.entries.filter { $0.hasPrefix("repo:") }
+        XCTAssertEqual(repos, ["repo:acme/halo-feedback:private"])
     }
 }
 

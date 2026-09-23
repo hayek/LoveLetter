@@ -38,6 +38,17 @@ final class GitHubAuthModelsTests: XCTestCase {
         XCTAssertEqual(repo.fullName, "acme/feedback")
         XCTAssertTrue(repo.isPrivate)
         XCTAssertEqual(repo.owner.login, "acme")
+        XCTAssertFalse(repo.owner.isOrganization, "no type: not known to be an organization")
+    }
+
+    func test_gitHubRepo_decodesTheOwnerType() throws {
+        let json = """
+        { "id": 1, "name": "fb", "full_name": "acme/fb", "private": false,
+          "owner": { "login": "acme", "type": "Organization" } }
+        """.data(using: .utf8)!
+        let repo = try JSONDecoder().decode(GitHubRepo.self, from: json)
+        XCTAssertEqual(repo.owner.type, "Organization")
+        XCTAssertTrue(repo.owner.isOrganization)
     }
 
     func test_gitHubUser_decodesFromGitHubJSON() throws {
@@ -245,5 +256,51 @@ final class GitHubAuthServiceTests: XCTestCase {
         } catch GitHubAuthService.AuthError.apiError(let code) {
             XCTAssertEqual(code, 401)
         }
+    }
+    // MARK: createRepo
+
+    func test_createRepo_postsToTheOrganizationAndDecodesTheNewRepo() async throws {
+        let json = """
+        { "id": 7, "name": "fb", "full_name": "acme/fb", "private": true,
+          "owner": { "login": "acme", "type": "Organization" } }
+        """.data(using: .utf8)!
+        let lock = OSAllocatedUnfairLock<URLRequest?>(initialState: nil)
+        MockURLProtocol.requestHandler = { req in
+            lock.withLock { $0 = req }
+            return (HTTPURLResponse(url: req.url!, statusCode: 201, httpVersion: nil, headerFields: nil)!, json)
+        }
+        let repo = try await GitHubAuthService(session: .mock)
+            .createRepo(name: "fb", organization: "acme", isPrivate: true, description: "d", token: "tok")
+        let captured = lock.withLock { $0 }
+        XCTAssertEqual(captured?.url?.absoluteString, "https://api.github.com/orgs/acme/repos")
+        XCTAssertEqual(captured?.httpMethod, "POST")
+        XCTAssertEqual(repo.fullName, "acme/fb")
+        XCTAssertTrue(repo.owner.isOrganization)
+    }
+
+    func test_createRepo_422CarriesGitHubsReason() async throws {
+        let json = """
+        { "message": "Repository creation failed.",
+          "errors": [{ "resource": "Repository", "code": "custom", "field": "name",
+                       "message": "name already exists on this account" }] }
+        """.data(using: .utf8)!
+        MockURLProtocol.requestHandler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 422, httpVersion: nil, headerFields: nil)!, json)
+        }
+        do {
+            _ = try await GitHubAuthService(session: .mock)
+                .createRepo(name: "fb", organization: nil, isPrivate: true, description: "d", token: "tok")
+            XCTFail("Expected throw")
+        } catch let error as GitHubAuthService.ValidationFailed {
+            XCTAssertEqual(error.message, "name already exists on this account")
+        }
+    }
+
+    func test_ensureLabel_treatsAnExistingLabelAsDone() async throws {
+        MockURLProtocol.requestHandler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 422, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await GitHubAuthService(session: .mock)
+            .ensureLabel("bug", color: "d73a4a", owner: "acme", repo: "fb", token: "tok")
     }
 }

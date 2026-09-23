@@ -171,7 +171,9 @@ enum ProductSetup {
     struct RepositoryService: Sendable {
         /// Whether `owner/name` exists (or is otherwise visible to the token).
         var exists: @Sendable (_ owner: String, _ name: String, _ token: String) async throws -> Bool
-        var create: @Sendable (NewRepository, _ description: String, _ token: String) async throws -> Void
+        /// Returns the repository as GitHub created it, so callers needn't read it back (a
+        /// just-created repo can take a moment to show up in reads).
+        var create: @Sendable (NewRepository, _ description: String, _ token: String) async throws -> GitHubRepo
         var ensureLabel: @Sendable (_ name: String, _ color: String, _ owner: String, _ repo: String,
                                     _ token: String) async throws -> Void
 
@@ -185,7 +187,7 @@ enum ProductSetup {
                 }
             },
             create: { new, description, token in
-                _ = try await GitHubAuthService().createRepo(
+                try await GitHubAuthService().createRepo(
                     name: new.name, organization: new.ownerIsOrganization ? new.owner : nil,
                     isPrivate: new.isPrivate, description: description, token: token)
             },
@@ -194,14 +196,45 @@ enum ProductSetup {
             })
     }
 
+    /// Why GitHub wouldn't create a repository, in words for the wizard and the CLI.
+    enum CreateRepositoryError: LocalizedError, Equatable {
+        case nameTaken(String)
+        /// 403/404: the token's user can't create repositories under `owner` (not a member, or
+        /// the organization restricts repository creation).
+        case notAllowed(owner: String)
+        /// Any other validation failure, in GitHub's words.
+        case rejected(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .nameTaken(let fullName): "\(fullName) already exists on GitHub."
+            case .notAllowed(let owner):   "GitHub didn't allow creating a repository in '\(owner)'."
+            case .rejected(let message):   "GitHub rejected the repository: \(message)"
+            }
+        }
+    }
+
     /// Creates the repository with the SDK's labels. `productName` goes into its description.
     /// Only the repository itself must succeed: a missing label is cosmetic, and failing after the
     /// repo exists would leave the user unable to retry under the same name.
+    @discardableResult
     static func createRepository(_ new: NewRepository, productName: String, token: String,
-                                 service: RepositoryService = .github) async throws {
-        try await service.create(new, "User feedback for \(productName), collected by Love Letter.", token)
-        for label in feedbackLabels {
-            try? await service.ensureLabel(label.name, label.color, new.owner, new.name, token)
+                                 service: RepositoryService = .github) async throws -> GitHubRepo {
+        let created: GitHubRepo
+        do {
+            created = try await service.create(new, "User feedback for \(productName), collected by Love Letter.", token)
+        } catch GitHubAuthService.AuthError.apiError(let code) where code == 403 || code == 404 {
+            throw CreateRepositoryError.notAllowed(owner: new.owner)
+        } catch GitHubAuthService.AuthError.apiError(422) {
+            throw CreateRepositoryError.nameTaken("\(new.owner)/\(new.name)")
+        } catch let error as GitHubAuthService.ValidationFailed {
+            throw error.message.localizedCaseInsensitiveContains("already exists")
+                ? CreateRepositoryError.nameTaken("\(new.owner)/\(new.name)")
+                : CreateRepositoryError.rejected(error.message)
         }
+        for label in feedbackLabels {
+            try? await service.ensureLabel(label.name, label.color, created.owner.login, created.name, token)
+        }
+        return created
     }
 }

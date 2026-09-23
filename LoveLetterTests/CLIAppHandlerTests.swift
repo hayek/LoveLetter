@@ -180,10 +180,17 @@ final class CLIAppHandlerTests: XCTestCase {
 
     // MARK: - add --create-repo
 
-    private func repositories(existing: Set<String> = [], log: CreatedRepos) -> ProductSetup.RepositoryService {
+    /// `refusing` maps a token to the error its create fails with.
+    private func repositories(existing: Set<String> = [], log: CreatedRepos,
+                              refusing: [String: Error] = [:]) -> ProductSetup.RepositoryService {
         ProductSetup.RepositoryService(
             exists: { owner, name, _ in existing.contains("\(owner)/\(name)") },
-            create: { new, _, token in await log.record("\(new.owner)/\(new.name) org:\(new.ownerIsOrganization) private:\(new.isPrivate) via:\(token)") },
+            create: { new, _, token in
+                if let error = refusing[token] { throw error }
+                await log.record("\(new.owner)/\(new.name) org:\(new.ownerIsOrganization) private:\(new.isPrivate) via:\(token)")
+                return GitHubRepo(id: 1, name: new.name, fullName: "\(new.owner)/\(new.name)",
+                                  isPrivate: new.isPrivate, owner: .init(login: new.owner))
+            },
             ensureLabel: { label, _, _, _, _ in await log.record("label:\(label)") })
     }
 
@@ -226,6 +233,67 @@ final class CLIAppHandlerTests: XCTestCase {
         let entries = await log.entries
         XCTAssertTrue(entries.isEmpty)
         XCTAssertTrue(products.products.isEmpty)
+    }
+
+    func testCreateRepoUsesGitHubsAnswerRatherThanReadingTheRepoBack() async throws {
+        connect("hayek")
+        var app = makeApp(fetchRepo: { _, _, _ in throw GitHubAuthService.AuthError.apiError(404) })
+        app.repositories = repositories(log: CreatedRepos())
+        _ = try await CLIRequestHandlers.addProduct(
+            request(.addProduct, ["repo": "hayek/fresh", "create": "private"]), deps: makeDeps(app))
+        XCTAssertEqual(products.products.first?.repo, "fresh")
+        XCTAssertEqual(products.products.first?.redactEmailAddresses, false, "the new repo is private")
+    }
+
+    func testCreateRepoForAnOrganizationTriesEachAccountUntilOneMay() async throws {
+        connect("alice"); connect("bob")
+        let log = CreatedRepos()
+        var app = makeApp()
+        app.repositories = repositories(log: log, refusing: ["token-alice": GitHubAuthService.AuthError.apiError(403)])
+        _ = try await CLIRequestHandlers.addProduct(
+            request(.addProduct, ["repo": "acme/fb", "create": "private"]), deps: makeDeps(app))
+        let entries = await log.entries
+        XCTAssertEqual(entries.first, "acme/fb org:true private:true via:token-bob")
+        let tokens = await secrets.tokens
+        XCTAssertEqual(tokens.map(\.token), ["token-bob"])
+    }
+
+    func testCreateRepoWhenNoAccountMayCreateInTheOrganization() async {
+        connect("alice")
+        var app = makeApp()
+        app.repositories = repositories(log: CreatedRepos(),
+                                        refusing: ["token-alice": GitHubAuthService.AuthError.apiError(404)])
+        let error = await expectError("auth") {
+            _ = try await CLIRequestHandlers.addProduct(
+                self.request(.addProduct, ["repo": "acme/fb", "create": "private"]), deps: self.makeDeps(app))
+        }
+        XCTAssertEqual(error?.exitCode, .auth)
+        XCTAssertTrue(products.products.isEmpty)
+    }
+
+    func testCreateRepoNameTakenOutOfSightIsRepoExists() async {
+        // The account can't see the (private) repo, so only the create finds the clash.
+        connect("hayek")
+        var app = makeApp()
+        app.repositories = repositories(log: CreatedRepos(), refusing: [
+            "token-hayek": GitHubAuthService.ValidationFailed(message: "name already exists on this account"),
+        ])
+        _ = await expectError("repo_exists") {
+            _ = try await CLIRequestHandlers.addProduct(
+                self.request(.addProduct, ["repo": "acme/fb", "create": "private"]), deps: self.makeDeps(app))
+        }
+        XCTAssertTrue(products.products.isEmpty)
+    }
+
+    func testCreateRepoWithAnUnknownAccount() async {
+        connect("hayek")
+        var app = makeApp()
+        app.repositories = repositories(log: CreatedRepos())
+        _ = await expectError("account_not_found") {
+            _ = try await CLIRequestHandlers.addProduct(
+                self.request(.addProduct, ["repo": "hayek/fb", "create": "private", "account": "nobody"]),
+                deps: self.makeDeps(app))
+        }
     }
 
     func testAddRedactsUnlessTheRepoIsKnownPrivate() async throws {

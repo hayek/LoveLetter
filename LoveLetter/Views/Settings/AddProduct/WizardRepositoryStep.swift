@@ -9,14 +9,8 @@ struct WizardRepositoryStep: View {
     let isMockDataMode: Bool
     var onConnectAccount: () -> Void
 
-    @State private var accountID: UUID?
-    @State private var repos: [UUID: LoadState] = [:]
     @State private var search = ""
     @State private var showManual = false
-
-    private enum LoadState {
-        case loading, loaded([GitHubRepo]), failed(String), expired
-    }
 
     /// Someone who can own a new repository: the account's user or one of its organizations.
     private struct Owner: Hashable {
@@ -25,7 +19,7 @@ struct WizardRepositoryStep: View {
     }
 
     private var accounts: [GitHubAccount] { accountStore.accounts }
-    private var account: GitHubAccount? { accounts.first { $0.id == accountID } ?? accounts.first }
+    private var account: GitHubAccount? { accounts.first { $0.id == model.accountID } ?? accounts.first }
 
     var body: some View {
         Group {
@@ -41,7 +35,7 @@ struct WizardRepositoryStep: View {
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     if accounts.count > 1 {
-                        Picker("Account", selection: Binding(get: { account?.id }, set: { accountID = $0 })) {
+                        Picker("Account", selection: Binding(get: { account?.id }, set: { model.accountID = $0 })) {
                             ForEach(accounts, id: \.id) { Text("@\($0.login)").tag(Optional($0.id)) }
                         }
                     }
@@ -104,7 +98,7 @@ struct WizardRepositoryStep: View {
                     .autocorrectionDisabled()
             }
             if let account {
-                switch repos[account.id] ?? .loading {
+                switch model.accountRepos[account.id] ?? .loading {
                 case .loading:
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
@@ -212,17 +206,21 @@ struct WizardRepositoryStep: View {
     private var newSection: some View {
         let name = model.repo.trimmingCharacters(in: .whitespaces)
         Section {
+            // Locked while Continue checks the name, so the answer is about what's shown.
             Picker("Owner", selection: Binding(get: { currentOwner }, set: { selectOwner($0) })) {
                 ForEach(owners, id: \.self) { owner in
                     Text(owner.login).tag(Optional(owner))
                 }
             }
+            .disabled(model.isCheckingNewRepo)
             TextField("Name", text: $model.repo, prompt: Text("myapp-feedback"))
                 .autocorrectionDisabled()
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
+                .disabled(model.isCheckingNewRepo)
             Toggle("Private", isOn: Binding(get: { model.repoIsPrivate ?? true }, set: { model.repoIsPrivate = $0 }))
+                .disabled(model.isCheckingNewRepo)
         } footer: {
             if let error = model.newRepoError {
                 Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
@@ -240,7 +238,7 @@ struct WizardRepositoryStep: View {
     private var owners: [Owner] {
         guard let account else { return [] }
         var orgs: [String] = []
-        if case .loaded(let all) = repos[account.id] {
+        if case .loaded(let all) = model.accountRepos[account.id] {
             orgs = Set(all.filter(\.owner.isOrganization).map(\.owner.login))
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         }
@@ -263,23 +261,23 @@ struct WizardRepositoryStep: View {
     // MARK: - Loading
 
     private func loadIfNeeded() {
-        guard let account, repos[account.id] == nil else { return }
+        guard let account, model.accountRepos[account.id] == nil else { return }
         load(account)
     }
 
     private func load(_ account: GitHubAccount) {
-        repos[account.id] = .loading
+        model.accountRepos[account.id] = .loading
         Task {
             guard let token = accountStore.token(for: account) else {
-                repos[account.id] = .expired
+                model.accountRepos[account.id] = .expired
                 return
             }
             do {
-                repos[account.id] = .loaded(try await GitHubAuthService().listRepos(token: token))
+                model.accountRepos[account.id] = .loaded(try await GitHubAuthService().listRepos(token: token))
             } catch GitHubAuthService.AuthError.apiError(let code) where code == 401 || code == 403 {
-                repos[account.id] = .expired
+                model.accountRepos[account.id] = .expired
             } catch {
-                repos[account.id] = .failed(error.localizedDescription)
+                model.accountRepos[account.id] = .failed(error.localizedDescription)
             }
         }
     }

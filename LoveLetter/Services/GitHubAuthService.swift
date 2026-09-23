@@ -150,10 +150,29 @@ actor GitHubAuthService {
         ])
 
         let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw AuthError.apiError((response as? HTTPURLResponse)?.statusCode ?? 0)
-        }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 422 { throw ValidationFailed(body: data) }
+        guard (200...299).contains(status) else { throw AuthError.apiError(status) }
         return try JSONDecoder().decode(GitHubRepo.self, from: data)
+    }
+
+    /// A 422 from a write, with GitHub's explanation — e.g. "name already exists on this account".
+    struct ValidationFailed: LocalizedError {
+        let message: String
+
+        init(message: String) { self.message = message }
+
+        init(body: Data) {
+            struct Body: Decodable {
+                struct Detail: Decodable { let message: String? }
+                let message: String?
+                let errors: [Detail]?
+            }
+            let decoded = try? JSONDecoder().decode(Body.self, from: body)
+            message = decoded?.errors?.compactMap(\.message).first ?? decoded?.message ?? "Validation failed."
+        }
+
+        var errorDescription: String? { message }
     }
 
     /// Creates `label` in the repo unless it already exists (GitHub answers 422 for a duplicate).

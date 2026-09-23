@@ -115,7 +115,6 @@
 		2CFF0F40B03AF7E84597E467 /* NewVersionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E48246EC91EF2861B91D5068 /* NewVersionSheet.swift */; };
 		2D609BF676535935DC85EB1E /* VersionQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63EB8A1A64EDFEDBBC244662 /* VersionQuery.swift */; };
 		2D66A2EAA0196DE881F16A5C /* AddEmailAccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8499B84CC6AD98A765E2AE33 /* AddEmailAccountSheet.swift */; };
-		2D8554D891CC95571B9A5EC6 /* AccountRepoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571F238D739CE1FB1C2B825F /* AccountRepoPicker.swift */; };
 		2D8EF6CB54F9E477A066663F /* ReplyTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DFDE5847E6C8FB862129D9 /* ReplyTemplate.swift */; };
 		2F4C8BA36FC7B7F24678BF22 /* MessageIDGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB6EEC52E99B4FCDB2A111DF /* MessageIDGenerator.swift */; };
 		2F542CA0CFE004680E09CA7B /* VersionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 286BD698C80E2273B7E57A75 /* VersionStoreTests.swift */; };
@@ -336,7 +335,6 @@
 		77EE36AA9E372941B02A5C04 /* MailAccountMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FADA075657BFD0225A0869 /* MailAccountMigration.swift */; };
 		7874B088FE6588862F1A4EAD /* MailAttachmentThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBB678646ED598414C6F09D5 /* MailAttachmentThumbnailView.swift */; };
 		78E88973D3F233EDF0DB4513 /* AppStoreConnectModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A77664E784E832100695267 /* AppStoreConnectModelsTests.swift */; };
-		78F8D2A32987D65895B4C50F /* AccountRepoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571F238D739CE1FB1C2B825F /* AccountRepoPicker.swift */; };
 		79F2620A5412A628D422765E /* IssueLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8795A76FD705C19972666E36 /* IssueLoaderTests.swift */; };
 		79FD83A6917FBDB0466F4606 /* MailToGitHubMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF2A9F2B55C2DBFF6F4C0545 /* MailToGitHubMirror.swift */; };
 		7A23AE1C130179D716D3569C /* GitHubAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C05B7EB6E94471AC8D80DFC /* GitHubAccount.swift */; };
@@ -871,7 +869,6 @@
 		54CF8A02031CF63F5AC56888 /* ProjectInspectorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectInspectorModel.swift; sourceTree = "<group>"; };
 		54FADA075657BFD0225A0869 /* MailAccountMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailAccountMigration.swift; sourceTree = "<group>"; };
 		55285ACD87C051D3E9A04A9D /* HTMLSanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLSanitizer.swift; sourceTree = "<group>"; };
-		571F238D739CE1FB1C2B825F /* AccountRepoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountRepoPicker.swift; sourceTree = "<group>"; };
 		58C12DE8D98EEE3294B394AC /* RepoSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoSectionView.swift; sourceTree = "<group>"; };
 		5918283A601E45083F736A76 /* ComposeFormCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeFormCore.swift; sourceTree = "<group>"; };
 		59F7B139DB1257287F3DBAFF /* ProductResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductResolverTests.swift; sourceTree = "<group>"; };
@@ -1310,7 +1307,6 @@
 			isa = PBXGroup;
 			children = (
 				5F3E4BAA72DCC33B3560BE2E /* AccountDeletionConfirmation.swift */,
-				571F238D739CE1FB1C2B825F /* AccountRepoPicker.swift */,
 				8499B84CC6AD98A765E2AE33 /* AddEmailAccountSheet.swift */,
 				042AC445108C0E66B97EC8E7 /* CLISettingsView.swift */,
 				5A1F197825D55497F4D30688 /* CloudSyncStatusRow.swift */,
@@ -2208,7 +2204,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				5766F2BD5B5824D87789ED75 /* AccountDeletionConfirmation.swift in Sources */,
-				78F8D2A32987D65895B4C50F /* AccountRepoPicker.swift in Sources */,
 				DDA37B3B72D47FB73C2B0904 /* ActivityLog.swift in Sources */,
 				B3E4ACB337AA2B069C496CEA /* ActivityWindow.swift in Sources */,
 				2D66A2EAA0196DE881F16A5C /* AddEmailAccountSheet.swift in Sources */,
@@ -2438,7 +2433,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				CEDD908F9A59AE10BF12BEBD /* AccountDeletionConfirmation.swift in Sources */,
-				2D8554D891CC95571B9A5EC6 /* AccountRepoPicker.swift in Sources */,
 				38B4CF8DFD22034C21BAFFB9 /* ActivityLog.swift in Sources */,
 				6583E67E481EEE0B25FEB479 /* ActivityWindow.swift in Sources */,
 				94CBB25A00893DB5D4DB01F0 /* AddEmailAccountSheet.swift in Sources */,

@@ -49,16 +49,31 @@ final class AddProductWizardModel {
             newRepoOwnerIsOrganization = false
         }
     }
-    /// For `.existing` the picked repo; for `.new` the owner and name to create.
-    var owner = ""
-    var repo = "" { didSet { if repo != oldValue { newRepoError = nil } } }
-    var token = ""
+    /// For `.existing` the picked repo; for `.new` the owner and name to create. Any change
+    /// invalidates the last name check.
+    var owner = "" { didSet { if owner != oldValue { clearNewRepoCheck() } } }
+    var repo = "" { didSet { if repo != oldValue { clearNewRepoCheck() } } }
+    var token = "" { didSet { if token != oldValue { clearNewRepoCheck() } } }
     /// Known when the repo was picked from an account or is being created; nil for manual entry.
     var repoIsPrivate: Bool?
     var newRepoOwnerIsOrganization = false
-    /// Why the new repository's name can't be used, from the check Continue runs.
+    /// Why the new repository's name can't be used, or why it couldn't be checked, from the check
+    /// Continue runs. Only a taken name blocks Continue; a failed check can simply be retried.
     private(set) var newRepoError: String?
+    private(set) var newRepoNameTaken = false
     private(set) var isCheckingNewRepo = false
+    /// "owner/repo" (lowercased) of the repository Create Product already made, so a retry
+    /// doesn't try to create it again and fail on its own name.
+    private var createdRepoKey: String?
+
+    /// The connected account the repository step shows, and its repository lists. Kept here
+    /// rather than in the step's view, which is rebuilt each time the user comes back to it.
+    var accountID: UUID?
+    var accountRepos: [UUID: AccountRepos] = [:]
+
+    enum AccountRepos {
+        case loading, loaded([GitHubRepo]), failed(String), expired
+    }
 
     var createsRepository: Bool { repositoryMode == .new }
     /// "owner/repo" (lowercased) of products that already exist.
@@ -92,7 +107,7 @@ final class AddProductWizardModel {
         switch step {
         case .repository:
             hasRepository && !isDuplicateRepository && !isCheckingNewRepo
-                && (!createsRepository || (ProductSetup.isValidRepositoryName(trimmed(repo)) && newRepoError == nil))
+                && (!createsRepository || (ProductSetup.isValidRepositoryName(trimmed(repo)) && !newRepoNameTaken))
         case .appStore:   appStore.canSave
         case .email:      email.canTest
         case .sdk:        true
@@ -124,20 +139,34 @@ final class AddProductWizardModel {
 
     /// Run by Continue on the repository step when creating one: makes sure the name is free on
     /// GitHub, so a clash shows here rather than after every other step. True when it's free.
+    /// A change made while the check runs (the mode and account stay switchable) voids its answer: false,
+    /// with no error, so the next Continue checks what's there now.
     func verifyNewRepository(service: ProductSetup.RepositoryService = .github) async -> Bool {
         guard step == .repository, createsRepository, canContinue else { return false }
+        let checked = [trimmed(owner), trimmed(repo), trimmed(token)]
         isCheckingNewRepo = true
         defer { isCheckingNewRepo = false }
-        do {
-            if try await service.exists(trimmed(owner), trimmed(repo), trimmed(token)) {
-                newRepoError = "\(repoFullName) already exists. Choose another name, or pick it under Existing."
-                return false
-            }
+        let result: Result<Bool, Error>
+        do { result = .success(try await service.exists(checked[0], checked[1], checked[2])) }
+        catch { result = .failure(error) }
+        guard step == .repository, createsRepository,
+              [trimmed(owner), trimmed(repo), trimmed(token)] == checked else { return false }
+        switch result {
+        case .success(true):
+            newRepoError = "\(repoFullName) already exists. Choose another name, or pick it under Existing."
+            newRepoNameTaken = true
+            return false
+        case .success(false):
             return true
-        } catch {
+        case .failure(let error):
             newRepoError = "Couldn't check the name on GitHub: \(error.localizedDescription)"
             return false
         }
+    }
+
+    private func clearNewRepoCheck() {
+        newRepoError = nil
+        newRepoNameTaken = false
     }
 
     func goBack() {
@@ -216,11 +245,19 @@ final class AddProductWizardModel {
                 mailRegistry: MailSyncCoordinatorRegistry?,
                 secrets: ProductSecrets = .keychain,
                 repositories: ProductSetup.RepositoryService = .github) async throws -> ProductConfig {
-        if createsRepository {
+        if createsRepository && createdRepoKey != repoFullName.lowercased() {
             let new = ProductSetup.NewRepository(owner: trimmed(owner), ownerIsOrganization: newRepoOwnerIsOrganization,
                                                  name: trimmed(repo), isPrivate: repoIsPrivate ?? true)
-            try await ProductSetup.createRepository(new, productName: displayName, token: trimmed(token),
-                                                    service: repositories)
+            do {
+                try await ProductSetup.createRepository(new, productName: displayName, token: trimmed(token),
+                                                        service: repositories)
+                createdRepoKey = repoFullName.lowercased()
+            } catch ProductSetup.CreateRepositoryError.nameTaken(let fullName) {
+                // Taken since Continue checked it: say so on the repository step too.
+                newRepoError = "\(fullName) already exists. Choose another name, or pick it under Existing."
+                newRepoNameTaken = true
+                throw ProductSetup.CreateRepositoryError.nameTaken(fullName)
+            }
         }
         var inbox: ProductSetup.EmailInbox?
         if sources.contains(.email) {

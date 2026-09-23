@@ -118,7 +118,11 @@ struct AddProductWizard: View {
             .disabled(!model.canContinue || isCreating)
         } else {
             Button {
-                Task { await continueTapped() }
+                if model.step == .repository && model.createsRepository {
+                    Task { await continueAfterCheckingNewRepository() }
+                } else {
+                    move(forward: true)
+                }
             } label: {
                 if model.isCheckingNewRepo { ProgressView().controlSize(.small) } else { Text("Continue") }
             }
@@ -175,11 +179,10 @@ struct AddProductWizard: View {
         .clipped()
     }
 
-    /// Continue, after checking a new repository's name is free when that's the step's choice.
-    private func continueTapped() async {
-        if model.step == .repository && model.createsRepository {
-            guard await model.verifyNewRepository() else { return }
-        }
+    /// Continue from the repository step once the new repository's name is known to be free.
+    /// The step check keeps a second tap that lands during the check from advancing twice.
+    private func continueAfterCheckingNewRepository() async {
+        guard await model.verifyNewRepository(), model.step == .repository else { return }
         move(forward: true)
     }
 
@@ -493,7 +496,9 @@ struct AddProductWizard: View {
             onCreated(product.id)
             dismiss()
         } catch {
-            createError = "GitHub couldn't create \(model.repoFullName): \(error.localizedDescription)"
+            createError = error is ProductSetup.CreateRepositoryError
+                ? error.localizedDescription
+                : "GitHub couldn't create \(model.repoFullName): \(error.localizedDescription)"
         }
     }
 }
