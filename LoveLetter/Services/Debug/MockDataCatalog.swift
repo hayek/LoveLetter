@@ -11,6 +11,16 @@ import LoveLetterCore
 extension MockDataSeeder {
     static let products: [ProductSpec] = [pixelJournal, tidyBudget, trailBuddy]
 
+    /// Reply templates, seeded into every product.
+    static let replyTemplates: [(title: String, body: String)] = [
+        ("Thanks — we're on it",
+         "Thanks so much for taking the time to write in! I've reproduced this and a fix is being worked on now. I'll let you know as soon as it ships."),
+        ("Fixed in the latest update",
+         "Good news: this is fixed in the update that just went out. Please update from the App Store and let me know if you still see it."),
+        ("Feature request noted",
+         "Love this idea — I've added it to our list for an upcoming version. Thanks for helping shape the app!"),
+    ]
+
     // MARK: Pixel Journal (iOS journaling app)
 
     static let pixelJournal = ProductSpec(

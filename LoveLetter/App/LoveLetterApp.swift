@@ -395,6 +395,9 @@ struct LoveLetterApp: App {
                     .overlay(QuickLookHost())
                     #endif
             )
+                #if DEBUG
+                .screenshotMode()
+                #endif
                 .task { if !isMockDataMode { await notificationService.requestAuthorizationIfNeeded() } }
                 .task(id: store.repos.map(\.id)) {
                     repoConfigSnapshot.update(store.repos)
@@ -462,6 +465,9 @@ struct LoveLetterApp: App {
         }
         Window("Settings", id: "settings") {
             sharedEnvironment(SettingsView(store: store))
+                #if DEBUG
+                .screenshotMode(sizeKey: "LLSettingsWindowSize")
+                #endif
         }
         .defaultSize(width: 720, height: 620)
         .windowResizability(.contentMinSize)

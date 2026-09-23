@@ -104,6 +104,7 @@ struct RootView: View {
                         } label: {
                             Image(systemName: "gear")
                         }
+                        .accessibilityLabel("Settings")
                     }
                 }
         } detail: {
@@ -153,6 +154,7 @@ struct RootView: View {
                         ToolbarItem(placement: .primaryAction) {
                             Button { showInspector.toggle() } label: { Image(systemName: "sidebar.trailing") }
                                 .help("Toggle Tasks & Versions")
+                                .accessibilityLabel("Tasks & Versions")
                         }
                     }
                     .modifier(TasksPanelPresentation(isPresented: $showInspector) {

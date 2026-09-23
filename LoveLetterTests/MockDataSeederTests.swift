@@ -15,7 +15,7 @@ final class MockDataSeederTests: XCTestCase {
 
     private func makeSeededContext() throws -> ModelContext {
         let schema = Schema([Product.self, CachedIssue.self, ProjectVersion.self, SeenIssue.self,
-                             SentReleaseNotification.self, RepoFetchState.self])
+                             SentReleaseNotification.self, RepoFetchState.self, ReplyTemplate.self])
         let container = try ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         containers.append(container)
         let context = ModelContext(container)
@@ -146,6 +146,15 @@ final class MockDataSeederTests: XCTestCase {
             XCTAssertTrue(seenHere.isSubset(of: feedback), "only feedback is marked seen")
             XCTAssertGreaterThan(seenHere.count, 0)
             XCTAssertLessThan(seenHere.count, feedback.count, "some must stay unread")
+        }
+    }
+
+    func testEveryProductHasReplyTemplates() throws {
+        let context = try makeSeededContext()
+        let templates = try context.fetch(FetchDescriptor<ReplyTemplate>())
+        for product in try products(context) {
+            let own = templates.filter { $0.repoOwner == product.owner && $0.repoName == product.repo }
+            XCTAssertEqual(own.count, MockDataSeeder.replyTemplates.count, product.displayName)
         }
     }
 

@@ -102,6 +102,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.borderless)
                         .help("Add Product")
+                        .accessibilityLabel("Add Product")
                     }
                 }
 
@@ -118,9 +119,11 @@ struct SettingsView: View {
                         .tag(SettingsSelection.cli)
                 }
                 #if DEBUG
-                Section {
-                    SettingsIconRow(title: "Debug", systemImage: "ladybug.fill", tileColor: .orange)
-                        .tag(SettingsSelection.debug)
+                if !ScreenshotMode.isActive {
+                    Section {
+                        SettingsIconRow(title: "Debug", systemImage: "ladybug.fill", tileColor: .orange)
+                            .tag(SettingsSelection.debug)
+                    }
                 }
                 #endif
             }
@@ -256,12 +259,14 @@ struct SettingsView: View {
                 }
 
                 #if DEBUG
-                Section {
-                    NavigationLink {
-                        DebugSettingsView()
-                            .navigationTitle("Debug")
-                    } label: {
-                        Label("Debug", systemImage: "ladybug")
+                if !ScreenshotMode.isActive {
+                    Section {
+                        NavigationLink {
+                            DebugSettingsView()
+                                .navigationTitle("Debug")
+                        } label: {
+                            Label("Debug", systemImage: "ladybug")
+                        }
                     }
                 }
                 #endif
@@ -288,7 +293,12 @@ struct SettingsView: View {
     }
 
     private var iCloudStatusRow: some View {
-        let style = iCloudStyle(for: syncStatus.state)
+        var state = syncStatus.state
+        #if DEBUG
+        // Screenshots run on simulators with no iCloud account; show the normal, synced state.
+        if ScreenshotMode.isActive { state = .syncing }
+        #endif
+        let style = iCloudStyle(for: state)
         return HStack(spacing: 12) {
             Image(systemName: style.icon)
                 .font(.system(size: 22))

@@ -84,6 +84,13 @@ enum MockDataSeeder {
                     createdAt: created))
             }
 
+            for (tIndex, template) in replyTemplates.enumerated() {
+                let created = now.addingTimeInterval(-Double(30 - tIndex) * 86_400)
+                context.insert(ReplyTemplate(repoOwner: owner, repoName: spec.repo,
+                                             title: template.title, body: template.body,
+                                             createdAt: created, updatedAt: created))
+            }
+
             // Every even-numbered feedback is already seen; the rest keep their unread dot.
             for f in spec.feedback where f.number.isMultiple(of: 2) {
                 context.insert(SeenIssue(repoOwner: owner, repoName: spec.repo,

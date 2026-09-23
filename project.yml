@@ -72,6 +72,30 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: Q7U5734Q3T
 
+  # Marketing screenshots on mock data — run via Scripts/screenshots.sh, not part of the unit
+  # test schemes (it relaunches the app dozens of times).
+  LoveLetterScreenshots:
+    type: bundle.ui-testing
+    platform: [iOS, macOS]
+    deploymentTarget:
+      iOS: "27.0"
+      macOS: "27.0"
+    sources:
+      - path: LoveLetterScreenshots
+        createIntermediateGroups: true
+    dependencies:
+      - target: LoveLetter_iOS
+        platforms: [iOS]
+      - target: LoveLetter_macOS
+        platforms: [macOS]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.amirhayek.AppFeedbackScreenshots
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: Q7U5734Q3T
+
 schemes:
   LoveLetter_iOS:
     build:
@@ -98,3 +122,23 @@ schemes:
       config: Debug
     archive:
       config: Release
+
+  LoveLetterScreenshots_iOS:
+    build:
+      targets:
+        LoveLetter_iOS: all
+        LoveLetterScreenshots_iOS: [test]
+    test:
+      config: Debug
+      targets:
+        - LoveLetterScreenshots_iOS
+
+  LoveLetterScreenshots_macOS:
+    build:
+      targets:
+        LoveLetter_macOS: all
+        LoveLetterScreenshots_macOS: [test]
+    test:
+      config: Debug
+      targets:
+        - LoveLetterScreenshots_macOS

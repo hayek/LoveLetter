@@ -60,7 +60,7 @@ struct IntelligenceSettingsSection: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 #if DEBUG
-                if let onClearPendingTriage, let onClearAllTriage {
+                if !ScreenshotMode.isActive, let onClearPendingTriage, let onClearAllTriage {
                     HStack {
                         Button("Clear Pending Suggestions", action: onClearPendingTriage)
                         Button("Clear All Triage Verdicts", role: .destructive, action: onClearAllTriage)
