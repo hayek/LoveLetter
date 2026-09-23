@@ -7,7 +7,23 @@ import Security
 enum KeychainService {
     private static let service = "com.feedbackviewer.tokens"
 
+    /// Set once at launch in DEBUG mock-data mode (`LoveLetterApp.applySideEffectPolicy`). While
+    /// true, every save/delete is a no-op: tokens are keyed by owner/repo and sync through iCloud
+    /// Keychain, so a Settings edit made against mock data could otherwise overwrite or delete the
+    /// user's real secrets on every device. Reads are unaffected.
+    nonisolated(unsafe) static var writesSuppressed = false
+    /// How many writes `writesSuppressed` has skipped (for tests).
+    nonisolated(unsafe) private(set) static var suppressedWriteCount = 0
+
+    /// True (and counted) when a write must be skipped.
+    private static func skipWrite() -> Bool {
+        guard writesSuppressed else { return false }
+        suppressedWriteCount += 1
+        return true
+    }
+
     static func save(token: String, for repo: ProductConfig) async {
+        if skipWrite() { return }
         let account = accountKey(for: repo)
         let data = Data(token.utf8)
         let query: [String: Any] = [
@@ -61,6 +77,7 @@ enum KeychainService {
     }
 
     static func delete(for repo: ProductConfig) async {
+        if skipWrite() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -92,6 +109,7 @@ enum KeychainService {
     }
 
     static func deleteLegacySMTPPassword() async {
+        if skipWrite() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -128,6 +146,7 @@ enum KeychainService {
     }
 
     static func deleteLegacyIMAPPassword() async {
+        if skipWrite() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -267,6 +286,7 @@ enum KeychainService {
     // MARK: - Shared helpers
 
     private static func saveSynchronizablePassword(_ password: String, account: String) async -> Bool {
+        if skipWrite() { return false }
         let data = Data(password.utf8)
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
@@ -300,6 +320,7 @@ enum KeychainService {
     }
 
     private static func deleteSynchronizablePassword(account: String) async {
+        if skipWrite() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,

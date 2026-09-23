@@ -90,6 +90,7 @@ struct LoveLetterApp: App {
             assertionFailure("Failed to create ModelContainer: \(error)")
             fatalError("Failed to create ModelContainer: \(error)")
         }
+        Self.applySideEffectPolicy(for: launchMode)
         #if DEBUG
         // Seed BEFORE any store is constructed, so their first reload() sees the mock rows.
         if isMock { Self.seedMockData(into: container) }
@@ -202,11 +203,7 @@ struct LoveLetterApp: App {
                 activityLog: activityLogValue)
         }
         let initialProducts = _store.wrappedValue.repos
-        ascRegistry.syncWithProducts(initialProducts.compactMap {
-            ASCProductConfig.make(id: $0.id, owner: $0.owner, repo: $0.repo,
-                                  issuerID: $0.appStoreIssuerID, keyID: $0.appStoreKeyID,
-                                  appAppleID: $0.appStoreAppAppleID)
-        })
+        ascRegistry.syncWithProducts(Self.ascConfigs(from: initialProducts, mode: launchMode))
         _appStoreRegistry = State(initialValue: ascRegistry)
 
         // Feedback-attachment downloader (GitHub issue attachments).
@@ -259,8 +256,10 @@ struct LoveLetterApp: App {
             accountStore: mailAccountStoreLocal,
             factory: registryFactory
         )
-        registry.syncWithAccounts()
-        _coordinatorRegistry = State(initialValue: registry)
+        // Mock mode: no mail registry at all, so no Settings-added account is ever synced, polled
+        // or flagged on a real IMAP server (every call site already handles nil).
+        if launchMode.runsExternalSources { registry.syncWithAccounts() }
+        _coordinatorRegistry = State(initialValue: launchMode.runsExternalSources ? registry : nil)
 
         // The attachment downloader routes each fetch to the IMAP client of the account that owns
         // the message (its bytes live in THAT account's Sent/INBOX folder); nil → default sender.
@@ -393,10 +392,11 @@ struct LoveLetterApp: App {
                 .task { if !isMockDataMode { await notificationService.requestAuthorizationIfNeeded() } }
                 .task(id: store.repos.map(\.id)) {
                     repoConfigSnapshot.update(store.repos)
-                    appStoreRegistry.syncWithProducts(ascConfigs(from: store.repos))
+                    appStoreRegistry.syncWithProducts(Self.ascConfigs(from: store.repos, mode: isMockDataMode ? .mock : .live))
                 }
                 .onAppear {
-                    // Mock mode has no mail accounts or ASC credentials; don't even start the pollers.
+                    // Mock mode: the mail registry is nil and the App Store registry is given no
+                    // configs, so nothing would poll anyway; skip the start calls too.
                     if !isMockDataMode {
                         #if canImport(SwiftMail)
                         coordinatorRegistry?.start()
@@ -461,19 +461,6 @@ struct LoveLetterApp: App {
         .windowResizability(.contentMinSize)
         #endif
     }
-
-    // MARK: - ASC helpers
-
-    /// Maps the current product list into `[ASCProductConfig]` — only products that have all three
-    /// ASC credential fields non-empty produce a config. When Phase 0/2 lands, the three ASC fields
-    /// on `ProductConfig` are already read here via `$0.appStoreIssuerID` etc.
-    private func ascConfigs(from products: [ProductConfig]) -> [ASCProductConfig] {
-        products.compactMap {
-            ASCProductConfig.make(id: $0.id, owner: $0.owner, repo: $0.repo,
-                                  issuerID: $0.appStoreIssuerID, keyID: $0.appStoreKeyID,
-                                  appAppleID: $0.appStoreAppAppleID)
-        }
-    }
 }
 
 #if os(macOS)
@@ -522,7 +509,29 @@ private struct ActivityMenuCommand: View {
 
 extension LoveLetterApp {
     /// Which data stack this process runs on. `.mock` is only ever produced in DEBUG builds.
-    enum LaunchMode: Equatable { case testing, mock, live }
+    enum LaunchMode: Equatable {
+        case testing, mock, live
+
+        /// False only in mock mode: no mail sync, no App Store polling, no Keychain writes.
+        var runsExternalSources: Bool { self != .mock }
+    }
+
+    /// Process-wide switches that must be set before any store or view can write. Mock mode makes
+    /// Keychain writes no-ops so nothing done against fake products can touch real secrets.
+    static func applySideEffectPolicy(for mode: LaunchMode) {
+        KeychainService.writesSuppressed = !mode.runsExternalSources
+    }
+
+    /// The products the App Store review registry should poll: those with all three ASC fields.
+    /// Empty in mock mode, so an App Store source set up on a mock product never reaches ASC.
+    static func ascConfigs(from products: [ProductConfig], mode: LaunchMode) -> [ASCProductConfig] {
+        guard mode.runsExternalSources else { return [] }
+        return products.compactMap {
+            ASCProductConfig.make(id: $0.id, owner: $0.owner, repo: $0.repo,
+                                  issuerID: $0.appStoreIssuerID, keyID: $0.appStoreKeyID,
+                                  appAppleID: $0.appStoreAppAppleID)
+        }
+    }
 
     /// Precedence: test host → mock data (DEBUG toggle, read once at launch) → real stores.
     static func resolveLaunchMode(isTesting: Bool) -> LaunchMode {
