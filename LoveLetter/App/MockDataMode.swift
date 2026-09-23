@@ -12,30 +12,3 @@ extension EnvironmentValues {
         set { self[MockDataModeKey.self] = newValue }
     }
 }
-
-/// Shows a small "MOCK DATA" capsule while `\.isMockDataMode` is on, so demo data is never
-/// mistaken for real data. It's a modifier rather than an inline overlay to keep RootView's long
-/// modifier chain within the type-checker's budget. Inert in Release.
-struct MockDataBadgeOverlay: ViewModifier {
-    @Environment(\.isMockDataMode) private var isMockDataMode
-
-    func body(content: Content) -> some View {
-        #if DEBUG
-        content.overlay(alignment: .bottomLeading) {
-            if isMockDataMode {
-                Text("MOCK DATA")
-                    .font(.caption.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.orange))
-                    .padding(12)
-                    .allowsHitTesting(false)
-                    .accessibilityLabel("Mock data mode")
-            }
-        }
-        #else
-        content
-        #endif
-    }
-}

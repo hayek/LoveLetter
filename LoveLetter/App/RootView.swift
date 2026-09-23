@@ -172,7 +172,6 @@ struct RootView: View {
                 }
             }
         }
-        .modifier(MockDataBadgeOverlay())
         .sheet(isPresented: $showSettings) {
             SettingsView(store: store)
         }
