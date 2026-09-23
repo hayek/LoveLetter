@@ -113,6 +113,36 @@ final class LaunchModeTests: XCTestCase {
         XCTAssertFalse(KeychainService.accessSuppressed)
     }
 
+    func testMockModeKeepsTriageAndIntelligenceSettingsOutOfRealDefaults() {
+        // Setting "Fully automatic" while exploring mock data must not auto-create tasks on real
+        // repos at the next live launch.
+        let mockDefaults = LoveLetterApp.settingsDefaults(for: .mock)
+        addTeardownBlock { mockDefaults.removePersistentDomain(forName: LoveLetterApp.mockSettingsSuiteName) }
+        // Guard: never write through these settings if they'd land in the real domain.
+        guard mockDefaults !== UserDefaults.standard else {
+            return XCTFail("mock mode must not use UserDefaults.standard for settings")
+        }
+        XCTAssertTrue(LoveLetterApp.settingsDefaults(for: .live) === UserDefaults.standard)
+        let realTriageMode = UserDefaults.standard.string(forKey: "triage.mode")
+        let realTranslation = UserDefaults.standard.object(forKey: "intelligence.translationEnabled") as? Bool
+
+        let triage = TriageSettings(defaults: mockDefaults)
+        triage.mode = .fullAuto
+        triage.markSnapshotted(owner: "mock-studio", repo: "pixel-journal")
+        let intelligence = IntelligenceSettings(defaults: mockDefaults)
+        intelligence.translationEnabled = false
+
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "triage.mode"), realTriageMode)
+        XCTAssertEqual(UserDefaults.standard.object(forKey: "intelligence.translationEnabled") as? Bool, realTranslation)
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "triage.snapshotted.mock-studio/pixel-journal"))
+
+        // The next mock launch starts from a clean slate.
+        let relaunched = LoveLetterApp.settingsDefaults(for: .mock)
+        XCTAssertEqual(TriageSettings(defaults: relaunched).mode, .off)
+        XCTAssertTrue(IntelligenceSettings(defaults: relaunched).translationEnabled)
+        XCTAssertFalse(TriageSettings(defaults: relaunched).hasSnapshotted(owner: "mock-studio", repo: "pixel-journal"))
+    }
+
     func testMockModeGivesTheAppStoreRegistryNothingToPoll() {
         // e.g. the user fills in an App Store source on a mock product while exploring Settings.
         let configured = ProductConfig(displayName: "Pixel Journal", owner: "mock-studio", repo: "pixel-journal",

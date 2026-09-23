@@ -35,6 +35,8 @@ struct LoveLetterApp: App {
     private let repoConfigSnapshot = ProductConfigSnapshot()
     /// True when this process launched in DEBUG mock-data mode (see `DebugSettings`).
     private let isMockDataMode: Bool
+    /// `.standard`, or a throwaway suite in mock mode (see `settingsDefaults(for:)`).
+    private let settingsDefaults: UserDefaults
     #if DEBUG
     @State private var debugSettings = DebugSettings()
     #endif
@@ -84,6 +86,8 @@ struct LoveLetterApp: App {
         let launchMode = Self.resolveLaunchMode(isTesting: isTesting)
         let isMock = launchMode == .mock
         isMockDataMode = isMock
+        let settingsDefaultsLocal = Self.settingsDefaults(for: launchMode)
+        settingsDefaults = settingsDefaultsLocal
         do {
             container = try Self.makeContainer(mode: launchMode)
         } catch {
@@ -143,10 +147,10 @@ struct LoveLetterApp: App {
         _outboundFailures = State(initialValue: outboundFailuresLocal)
         let outboundTrackerLocal = OutboundSendTracker()
         _outboundTracker = State(initialValue: outboundTrackerLocal)
-        _intelligenceSettings = State(initialValue: IntelligenceSettings())
+        _intelligenceSettings = State(initialValue: IntelligenceSettings(defaults: settingsDefaultsLocal))
         _intelligenceService = State(initialValue: IntelligenceService())
 
-        let triageSettingsLocal = TriageSettings()
+        let triageSettingsLocal = TriageSettings(defaults: settingsDefaultsLocal)
         _triageSettings = State(initialValue: triageSettingsLocal)
         let triageCoordinatorLocal = FeedbackTriageCoordinator(
             provider: _intelligenceService.wrappedValue,
@@ -376,6 +380,8 @@ struct LoveLetterApp: App {
             .environment(thumbnailCache)
             .environment(feedbackAttachmentDownloaderHolder)
             .environment(\.isMockDataMode, isMockDataMode)
+            // @AppStorage keys (e.g. `summary.collapsed.*`) stay in the mock suite in mock mode.
+            .defaultAppStorage(settingsDefaults)
             #if DEBUG
             .environment(debugSettings)
             #endif
@@ -521,6 +527,25 @@ extension LoveLetterApp {
     /// read or change real secrets.
     static func applySideEffectPolicy(for mode: LaunchMode) {
         KeychainService.accessSuppressed = !mode.runsExternalSources
+    }
+
+    #if DEBUG
+    /// Throwaway defaults suite for settings changed while running on mock data.
+    static let mockSettingsSuiteName = "debug.mock"
+    #endif
+
+    /// Where app settings (triage, intelligence, `@AppStorage`) persist. Mock mode gets a
+    /// throwaway suite, cleared at every launch, so e.g. setting triage to "Fully automatic"
+    /// against mock data can't auto-create tasks on real repos at the next live launch.
+    /// `DebugSettings` always uses `.standard`, so the mock toggle can still be turned off.
+    static func settingsDefaults(for mode: LaunchMode) -> UserDefaults {
+        #if DEBUG
+        if mode == .mock, let suite = UserDefaults(suiteName: mockSettingsSuiteName) {
+            suite.removePersistentDomain(forName: mockSettingsSuiteName)
+            return suite
+        }
+        #endif
+        return .standard
     }
 
     /// The products the App Store review registry should poll: those with all three ASC fields.
