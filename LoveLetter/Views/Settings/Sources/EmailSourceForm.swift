@@ -350,7 +350,7 @@ struct EmailSetupHelp: View {
                 }
                 SourceHelpStepRow(number: 4, text: "Enter the inbox address and paste the app password.")
                 SourceHelpStepRow(number: 5, text: "Custom providers only: enter the IMAP host and port from your provider's help docs.")
-                SourceHelpStepRow(number: 6, text: "Tap Test Connection to verify, then Save.")
+                SourceHelpStepRow(number: 6, text: "Tap Test Connection to verify.")
             }
             .font(.callout)
             .padding(.vertical, 4)

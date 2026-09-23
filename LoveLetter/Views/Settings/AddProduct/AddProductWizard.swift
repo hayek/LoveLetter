@@ -36,6 +36,8 @@ struct AddProductWizard: View {
         content
             .onAppear {
                 model.existingRepoKeys = Set(store.products.map { "\($0.owner)/\($0.repo)".lowercased() })
+                // Without a connected account, manual entry is the only way in; don't hide it.
+                if gitHubAccounts.accounts.isEmpty { showManualRepo = true }
             }
             .sheet(isPresented: $showGitHubLogin) {
                 GitHubLoginView(accountStore: gitHubAccounts)
@@ -124,12 +126,14 @@ struct AddProductWizard: View {
                 .frame(width: 56, height: 56)
                 .background(tint.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .contentTransition(.symbolEffect(.replace))
+                .accessibilityHidden(true)
             Text("Step \(model.stepNumber) of \(model.steps.count)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
             Text(info.title)
                 .font(.title2.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
             Text(info.subtitle)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -141,17 +145,25 @@ struct AddProductWizard: View {
 
     private var tint: Color { model.colorHex.map(Color.init(hex:)) ?? .accentColor }
 
+    /// The ZStack keeps the outgoing and incoming step overlapped while they swap (in the macOS
+    /// VStack they'd otherwise split the height). Only the insertion is directional: a removed
+    /// view keeps the transition from its last render, which points the wrong way right after
+    /// the user reverses direction.
     private var stepForm: some View {
-        Form {
-            #if os(iOS)
-            Section { header }
-                .listRowBackground(Color.clear)
-            #endif
-            stepContent
+        ZStack {
+            Form {
+                #if os(iOS)
+                Section { header }
+                    .listRowBackground(Color.clear)
+                #endif
+                stepContent
+            }
+            .formStyle(.grouped)
+            .id(model.step)
+            .transition(.asymmetric(insertion: .push(from: model.movedForward ? .trailing : .leading),
+                                    removal: .opacity))
         }
-        .formStyle(.grouped)
-        .id(model.step)
-        .transition(.push(from: model.movedForward ? .trailing : .leading))
+        .clipped()
     }
 
     private func skip() {
@@ -248,7 +260,7 @@ struct AddProductWizard: View {
             }
         } footer: {
             if model.isDuplicateRepository {
-                Label("\(model.owner)/\(model.repo) is already a product.", systemImage: "exclamationmark.triangle.fill")
+                Label("\(model.repoFullName) is already a product.", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
             } else if showManualRepo {
                 Text("The token needs read and write access to the repository's issues. It's stored in your Keychain.")
@@ -275,7 +287,7 @@ struct AddProductWizard: View {
             TextField("Key ID", text: Bindable(asc).keyID)
                 .autocorrectionDisabled()
             LabeledContent("Private Key") {
-                Button(asc.pemText.isEmpty ? "Import .p8 File…" : "Replace…") { showKeyImporter = true }
+                Button(asc.pemText.isEmpty ? "Import .p8 Key…" : "Replace…") { showKeyImporter = true }
             }
             if !asc.pemText.isEmpty {
                 Label("Key imported", systemImage: "checkmark.circle.fill")
@@ -308,7 +320,12 @@ struct AddProductWizard: View {
                 if case .failed(let message) = asc.phase {
                     Label(message, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
-                    // Fallback when the key can't list apps: the numeric Apple ID from App Store Connect.
+                } else if asc.phase == .valid {
+                    Label("The key works but can't see any apps.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                if model.appStoreNeedsManualAppID {
+                    // Fallback: the numeric Apple ID from the app's App Information page.
                     TextField("Apple ID", text: Bindable(asc).manualAppID, prompt: Text("Numeric app ID"))
                         #if os(iOS)
                         .keyboardType(.numberPad)
@@ -437,7 +454,7 @@ struct AddProductWizard: View {
         } header: {
             Text("Set Up with an AI Agent")
         } footer: {
-            Text("Paste the prompt into Claude Code, Codex or Cursor in your app's project. It adds the SDK and points it at \(model.owner)/\(model.repo).")
+            Text("Paste the prompt into Claude Code, Codex or Cursor in your app's project. It adds the SDK and points it at \(model.repoFullName).")
         }
 
         Section {
@@ -450,7 +467,8 @@ struct AddProductWizard: View {
     }
 
     private func copyPrompt() {
-        let text = SDKIntegrationPrompt.text(owner: model.owner, repo: model.repo)
+        let text = SDKIntegrationPrompt.text(owner: model.owner.trimmingCharacters(in: .whitespacesAndNewlines),
+                                             repo: model.repo.trimmingCharacters(in: .whitespacesAndNewlines))
         #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
@@ -477,7 +495,7 @@ struct AddProductWizard: View {
         }
 
         Section {
-            summaryRow("Repository", systemImage: "externaldrive", value: "\(model.owner)/\(model.repo)")
+            summaryRow("Repository", systemImage: "externaldrive", value: model.repoFullName)
             summaryRow("In-App Feedback", systemImage: "hammer",
                        value: model.sources.contains(.sdk) ? "Love Letter SDK" : nil)
             summaryRow("App Store Reviews", systemImage: "star.bubble",
@@ -516,7 +534,7 @@ struct AddProductWizard: View {
         var inboxAccountID: UUID?
         if model.sources.contains(.email) {
             let mail = model.email
-            if mail.senderName.isEmpty { mail.senderName = model.makeConfig().displayName }
+            if mail.senderName.isEmpty { mail.senderName = model.displayName }
             let v = mail.effectiveAccountValues()
             let account = mailAccounts.add { acc in
                 acc.presetRaw = v.presetRaw

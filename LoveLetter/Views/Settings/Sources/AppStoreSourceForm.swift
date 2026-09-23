@@ -188,7 +188,7 @@ struct AppStoreKeyHelp: View {
                 SourceHelpStepRow(number: 4, text: "Click Generate API Key (the ＋). Name it, and under Access choose Admin (or Customer Support) so it can read reviews and post your responses. Then Generate.")
                 SourceHelpStepRow(number: 5, text: "Copy the new key's Key ID from its row and paste it into Key ID.")
                 SourceHelpStepRow(number: 6, text: "Click Download API Key to save the .p8 file — Apple lets you download it only once. Then tap \u{201C}Import .p8 Key\u{2026}\u{201D} above.")
-                SourceHelpStepRow(number: 7, text: "Back here, tap Test to validate and load your apps, pick the app, and Save.")
+                SourceHelpStepRow(number: 7, text: "Back here, test the key to load your apps, then pick the app.")
                 Link(destination: URL(string: "https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api")!) {
                     Label("Apple's guide: Creating API keys", systemImage: "book")
                 }

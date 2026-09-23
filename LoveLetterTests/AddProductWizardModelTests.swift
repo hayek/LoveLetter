@@ -82,6 +82,48 @@ final class AddProductWizardModelTests: XCTestCase {
         XCTAssertNil(config.appStoreIssuerID)
     }
 
+    func testSummaryPrefillFollowsLaterChoicesButKeepsATypedName() {
+        let model = modelWithRepo()
+        model.goForward(); model.skip(); model.skip(); model.skip() // on summary
+        XCTAssertEqual(model.name, "app-feedback")
+        model.goBack(); model.goBack()               // back on appStore
+        model.appStore.issuerID = "iss"; model.appStore.keyID = "kid"; model.appStore.pemText = "pem"
+        model.appStore.discoveredApps = [ASCApp(id: "42", bundleId: "com.acme.app", name: "Acme")]
+        model.appStore.selectedAppID = "42"
+        model.goForward(); model.skip()              // App Store set up → summary
+        XCTAssertEqual(model.name, "Acme", "an untouched prefill tracks the picked app")
+        model.name = "Acme Pro"
+        model.goBack(); model.goBack(); model.skip(); model.skip() // App Store skipped → summary
+        XCTAssertEqual(model.name, "Acme Pro", "a typed name is never overwritten")
+    }
+
+    func testEmptyNameFallsBackToSuggestion() {
+        let model = modelWithRepo()
+        model.goForward(); model.skip(); model.skip(); model.skip() // on summary
+        model.name = "  "
+        XCTAssertTrue(model.canContinue)
+        XCTAssertEqual(model.makeConfig().displayName, "app-feedback")
+    }
+
+    func testManualAppleIDOfferedOnlyWhenNoAppsToPick() {
+        let model = AddProductWizardModel()
+        XCTAssertFalse(model.appStoreNeedsManualAppID)
+        model.appStore.phase = .failed("nope")
+        XCTAssertTrue(model.appStoreNeedsManualAppID)
+        model.appStore.phase = .valid
+        XCTAssertTrue(model.appStoreNeedsManualAppID, "a valid key that sees no apps")
+        model.appStore.discoveredApps = [ASCApp(id: "42", bundleId: "com.acme.app", name: "Acme")]
+        XCTAssertFalse(model.appStoreNeedsManualAppID)
+    }
+
+    func testRepoFullNameIsTrimmed() {
+        let model = modelWithRepo()
+        model.owner = " acme "; model.repo = "app-feedback\n"
+        XCTAssertEqual(model.repoFullName, "acme/app-feedback")
+        model.existingRepoKeys = ["acme/app-feedback"]
+        XCTAssertTrue(model.isDuplicateRepository)
+    }
+
     func testRedactsAddressesUnlessRepoKnownPrivate() {
         let model = modelWithRepo()
         XCTAssertTrue(model.makeConfig().redactEmailAddresses)

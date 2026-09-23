@@ -52,6 +52,9 @@ final class AddProductWizardModel {
     // Summary
     var name = ""
     var colorHex: String?
+    /// The name the summary step last filled in, so a later visit can refresh it (e.g. after
+    /// going back to pick an App Store app) without overwriting a name the user typed.
+    private var prefilledName: String?
 
     init() {
         email = EmailSourceFormModel(productID: productID, existingAccountID: nil)
@@ -72,7 +75,7 @@ final class AddProductWizardModel {
         case .appStore:   appStore.canSave
         case .email:      email.canTest
         case .sdk:        true
-        case .summary:    !trimmed(name).isEmpty
+        case .summary:    true // an empty name falls back to `suggestedName`
         }
     }
 
@@ -92,7 +95,10 @@ final class AddProductWizardModel {
         guard let index = steps.firstIndex(of: step), index + 1 < steps.count else { return }
         movedForward = true
         step = steps[index + 1]
-        if step == .summary && trimmed(name).isEmpty { name = suggestedName }
+        if step == .summary && (trimmed(name).isEmpty || name == prefilledName) {
+            name = suggestedName
+            prefilledName = name
+        }
     }
 
     func goBack() {
@@ -107,12 +113,24 @@ final class AddProductWizardModel {
         !trimmed(owner).isEmpty && !trimmed(repo).isEmpty && !trimmed(token).isEmpty
     }
 
+    /// "owner/repo", trimmed.
+    var repoFullName: String { "\(trimmed(owner))/\(trimmed(repo))" }
+
     var isDuplicateRepository: Bool {
-        existingRepoKeys.contains("\(trimmed(owner))/\(trimmed(repo))".lowercased())
+        existingRepoKeys.contains(repoFullName.lowercased())
     }
 
     var selectedRepoKey: String? {
-        hasRepository ? "\(trimmed(owner))/\(trimmed(repo))".lowercased() : nil
+        hasRepository ? repoFullName.lowercased() : nil
+    }
+
+    /// The numeric Apple ID fallback is offered when the key couldn't list any apps to pick from.
+    var appStoreNeedsManualAppID: Bool {
+        switch appStore.phase {
+        case .failed: true
+        case .valid:  appStore.discoveredApps.isEmpty
+        case .idle, .testing: false
+        }
     }
 
     /// The App Store app the user picked, when the key was verified.
@@ -126,13 +144,18 @@ final class AddProductWizardModel {
         selectedApp?.name ?? trimmed(repo)
     }
 
+    /// The name the product is saved with.
+    var displayName: String {
+        trimmed(name).isEmpty ? suggestedName : trimmed(name)
+    }
+
     /// The product as it will be saved. Source secrets (token, .p8, inbox password) are stored
     /// separately by the view; the email inbox id is attached once its account exists.
     func makeConfig(feedbackInboxAccountID: UUID? = nil) -> ProductConfig {
         let usesAppStore = sources.contains(.appStore)
         return ProductConfig(
             id: productID,
-            displayName: trimmed(name).isEmpty ? suggestedName : trimmed(name),
+            displayName: displayName,
             owner: trimmed(owner),
             repo: trimmed(repo),
             // Redact addresses in mirrored comments unless the repo is known to be private.
