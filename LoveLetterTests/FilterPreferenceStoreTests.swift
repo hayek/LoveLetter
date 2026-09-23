@@ -6,7 +6,7 @@ import SwiftData
 final class FilterPreferenceStoreTests: XCTestCase {
     private func makeStore() throws -> FilterPreferenceStore {
         let schema = Schema([RepoFilterPreference.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: config)
         return FilterPreferenceStore(context: ModelContext(container))
     }

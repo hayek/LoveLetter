@@ -15,7 +15,7 @@ final class ComposeFormCoreSmokeTests: XCTestCase {
 
     @MainActor
     func test_composeForm_rendersWithAttachmentControl() throws {
-        let accountConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+        let accountConfig = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let accountContainer = try ModelContainer(for: MailAccount.self, configurations: accountConfig)
         let store = MailAccountStore(context: ModelContext(accountContainer))
         let account = store.add { acc in
@@ -25,7 +25,7 @@ final class ComposeFormCoreSmokeTests: XCTestCase {
             acc.smtpUsername = "alice@gmail.com"
             acc.senderName = "Alice"
         }
-        let settingsConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+        let settingsConfig = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let settingsContainer = try ModelContainer(for: MailSettings.self, configurations: settingsConfig)
 
         let vm = ComposeMailViewModel(

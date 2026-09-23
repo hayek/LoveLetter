@@ -7,7 +7,7 @@ final class MailAccountMigrationTests: XCTestCase {
 
     private func makeStore() throws -> (MailAccountStore, MailSettingsStore, UserDefaults) {
         let schema = Schema([MailAccount.self, MailSettings.self])
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: config)
         let ctx = ModelContext(container)
         let suite = "MailAccountMigrationTests-\(UUID().uuidString)"
@@ -160,7 +160,7 @@ final class MailAccountMigrationTests: XCTestCase {
 
     private func makeV2Fixtures() throws -> (MailAccountStore, MailSettingsStore, MailThreadStore, UserDefaults, ModelContext) {
         let schema = Schema([MailAccount.self, MailSettings.self, MailThread.self, MailMessage.self])
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: config)
         let ctx = ModelContext(container)
         let accountStore = MailAccountStore(context: ctx)

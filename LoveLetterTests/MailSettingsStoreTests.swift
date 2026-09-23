@@ -6,7 +6,7 @@ import SwiftData
 final class MailSettingsStoreTests: XCTestCase {
     private func makeContext() throws -> ModelContext {
         let schema = Schema([MailSettings.self])
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: config)
         return ModelContext(container)
     }

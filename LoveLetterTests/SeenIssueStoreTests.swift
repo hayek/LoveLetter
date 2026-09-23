@@ -6,7 +6,7 @@ import SwiftData
 final class SeenIssueStoreTests: XCTestCase {
     private func makeStore() throws -> (SeenIssueStore, ModelContext) {
         let schema = Schema([SeenIssue.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: config)
         let ctx = ModelContext(container)
         return (SeenIssueStore(context: ctx), ctx)

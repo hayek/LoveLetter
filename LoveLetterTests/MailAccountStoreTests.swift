@@ -6,7 +6,7 @@ import SwiftData
 final class MailAccountStoreTests: XCTestCase {
 
     private func makeContext() throws -> ModelContext {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MailAccount.self, configurations: config)
         return ModelContext(container)
     }
@@ -42,7 +42,7 @@ final class MailAccountStoreTests: XCTestCase {
     // MARK: - Multi-account API tests
 
     private func makeStore() throws -> MailAccountStore {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MailAccount.self, configurations: config)
         return MailAccountStore(context: ModelContext(container))
     }

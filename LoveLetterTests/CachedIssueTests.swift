@@ -81,7 +81,7 @@ final class CachedIssueTests: XCTestCase {
 
     func test_inMemoryContainer_persistsAndFetches() throws {
         let schema = Schema([CachedIssue.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: config)
         let ctx = ModelContext(container)
         ctx.insert(CachedIssue(

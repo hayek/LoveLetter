@@ -6,7 +6,7 @@ import SwiftData
 final class GitHubAccountStoreTests: XCTestCase {
 
     private func makeStore() throws -> GitHubAccountStore {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: GitHubAccount.self, configurations: config)
         return GitHubAccountStore(context: ModelContext(container))
     }
@@ -44,7 +44,7 @@ final class GitHubAccountStoreTests: XCTestCase {
     }
 
     func test_coalesceCollapsesDuplicateLoginsFromSync() throws {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: GitHubAccount.self, configurations: config)
         let context = ModelContext(container)
         // Two rows, same login, as if synced from two devices. Oldest wins.

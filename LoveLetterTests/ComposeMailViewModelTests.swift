@@ -24,13 +24,13 @@ final class ComposeMailViewModelTests: XCTestCase {
     }
 
     private func makeSettingsStore() throws -> MailSettingsStore {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MailSettings.self, configurations: config)
         return MailSettingsStore(context: ModelContext(container))
     }
 
     private func makeStore(configured: Bool = true, preset: SMTPCredentials.Preset = .gmail) throws -> MailAccountStore {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MailAccount.self, configurations: config)
         let store = MailAccountStore(context: ModelContext(container))
         if configured {

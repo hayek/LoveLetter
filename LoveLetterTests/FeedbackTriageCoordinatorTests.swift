@@ -17,7 +17,7 @@ struct FeedbackTriageCoordinatorTests {
         let repo = ProductConfig(displayName: "P", owner: "o", repo: "r")
 
         init(mode: TriageMode) throws {
-            let config = ModelConfiguration(isStoredInMemoryOnly: true)
+            let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             let container = try ModelContainer(for: TriageVerdictRecord.self, configurations: config)
             store = TriageVerdictStore(context: ModelContext(container))
             settings = TriageSettings(defaults: UserDefaults(suiteName: "triage-co-\(UUID())")!)

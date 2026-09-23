@@ -96,7 +96,7 @@ final class IssueListViewModelTests: XCTestCase {
 extension IssueListViewModelTests {
     private func makeStore() throws -> SeenIssueStore {
         let schema = Schema([SeenIssue.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: config)
         return SeenIssueStore(context: ModelContext(container))
     }
@@ -164,7 +164,7 @@ extension IssueListViewModelTests {
         )
         vm.allIssues = [englishIssue]
         let context = ModelContext(try! ModelContainer(for: CachedIssue.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)))
         vm.attachIntelligence(provider: MockIntelligenceProvider(), settings: settings, cacheContext: context)
 
         vm.startTranslationsIfNeeded()
@@ -188,7 +188,7 @@ extension IssueListViewModelTests {
         )
         vm.allIssues = [spanishIssue]
         let context = ModelContext(try! ModelContainer(for: CachedIssue.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)))
         vm.attachIntelligence(provider: MockIntelligenceProvider(), settings: settings, cacheContext: context)
 
         // No on-device call anymore: a non-target issue is enqueued directly for the
@@ -227,7 +227,7 @@ extension IssueListViewModelTests {
             description: "La aplicación se cierra cuando abro la página de configuración.",
             labels: [])]
         let context = ModelContext(try! ModelContainer(for: CachedIssue.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)))
         vm.attachIntelligence(provider: mock, settings: settings, cacheContext: context)
 
         vm.startTranslationsIfNeeded()
@@ -244,7 +244,7 @@ extension IssueListViewModelTests {
 
         let container = try! ModelContainer(
             for: CachedIssue.self, IssueTranslation.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         )
         let context = ModelContext(container)
         // Translation produced by another device, arriving via CloudKit.
@@ -322,7 +322,7 @@ extension IssueListViewModelTests {
         let settings = IntelligenceSettings(defaults: UserDefaults(suiteName: UUID().uuidString)!)
         settings.targetLanguageCode = "en"
         let context = ModelContext(try! ModelContainer(for: CachedIssue.self, IssueTranslation.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)))
         let vm = IssueListViewModel()
         vm.attachSeenStore(SeenIssueStore(context: context), owner: "org", repo: "repo")
         let issue = FeedbackIssue(
@@ -492,8 +492,9 @@ extension IssueListViewModelTests {
             labeled(3, ["user-submitted", "source:app-store"]),
         ]
 
-        // Only card chips are offered — type, user-submitted and source: markers are not tags.
-        XCTAssertEqual(vm.uniqueTags, ["claude-beta", "codex-beta"])
+        // Only card chips are offered — user-submitted and source: markers are not tags, but
+        // `bug` is an ordinary label and is.
+        XCTAssertEqual(vm.uniqueTags, ["bug", "claude-beta", "codex-beta"])
 
         vm.filters.tags = ["codex-beta"]
         XCTAssertFalse(vm.filters.isEmpty)
@@ -506,6 +507,9 @@ extension IssueListViewModelTests {
         let vm2 = IssueListViewModel()
         vm2.applyFeedbackFilters(PersistedFeedbackFilters(tags: ["claude-beta"]))
         XCTAssertEqual(vm2.filters.tags, ["claude-beta"])
+
+        vm.filters.tags = ["bug"]
+        XCTAssertEqual(vm.visibleIssues.map(\.number), [1])
     }
 
     @MainActor

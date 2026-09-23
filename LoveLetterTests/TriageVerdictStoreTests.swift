@@ -5,7 +5,7 @@ import SwiftData
 @MainActor
 struct TriageVerdictStoreTests {
     private func makeStore() throws -> TriageVerdictStore {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: TriageVerdictRecord.self, configurations: config)
         return TriageVerdictStore(context: ModelContext(container))
     }
