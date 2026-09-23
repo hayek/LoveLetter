@@ -1,6 +1,7 @@
 #if DEBUG
 import XCTest
 import SwiftData
+import Security
 @testable import LoveLetter
 
 @MainActor
@@ -22,34 +23,94 @@ final class LaunchModeTests: XCTestCase {
     }
 
     override func tearDown() {
-        KeychainService.writesSuppressed = false
+        KeychainService.accessSuppressed = false
         super.tearDown()
     }
 
     // MARK: Review fixes: mock mode must not reach real secrets or real sources
 
-    func testMockModeSuppressesEveryKeychainWrite() async {
-        LoveLetterApp.applySideEffectPolicy(for: .mock)
-        XCTAssertTrue(KeychainService.writesSuppressed)
-        let before = KeychainService.suppressedWriteCount
-        // A real repo typed into Add Product while in mock mode shares the owner/repo token slot.
-        let real = ProductConfig(displayName: "Real", owner: "someone", repo: "real-app")
-        await KeychainService.save(token: "typed-in-mock-mode", for: real)
-        await KeychainService.delete(for: real)
-        let savedKey = await KeychainService.saveASCKey("pem", for: UUID())
-        await KeychainService.deleteASCKey(for: UUID())
-        let savedIMAP = await KeychainService.saveIMAPPassword("pw", for: UUID())
-        await KeychainService.deleteGitHubToken(for: UUID())
-        XCTAssertFalse(savedKey); XCTAssertFalse(savedIMAP)
-        XCTAssertEqual(KeychainService.suppressedWriteCount - before, 6)
+    /// Removes every item the suppression tests address, with suppression off, so a regression
+    /// that let a write through can't leave synchronizable iCloud Keychain items behind.
+    private func removeKeychainItemsAfterTest(repo: ProductConfig, ids: [UUID]) {
+        addTeardownBlock {
+            KeychainService.accessSuppressed = false
+            await KeychainService.delete(for: repo)
+            for id in ids {
+                await KeychainService.deleteASCKey(for: id)
+                await KeychainService.deleteIMAPPassword(for: id)
+                await KeychainService.deleteSMTPPassword(for: id)
+                await KeychainService.deleteGitHubToken(for: id)
+            }
+        }
     }
 
-    func testLiveAndTestingModesKeepKeychainWrites() {
+    func testMockModeSuppressesEveryKeychainWrite() async {
+        // A real repo typed into Add Product while in mock mode shares the owner/repo token slot.
+        let real = ProductConfig(displayName: "Real", owner: "someone", repo: "real-app")
+        let id = UUID()
+        removeKeychainItemsAfterTest(repo: real, ids: [id])
+        LoveLetterApp.applySideEffectPolicy(for: .mock)
+        // Guard: never call the real APIs below unless suppression is on.
+        guard KeychainService.accessSuppressed else {
+            return XCTFail("mock mode must suppress Keychain access")
+        }
+        let before = KeychainService.suppressedAccessCount
+        await KeychainService.save(token: "typed-in-mock-mode", for: real)
+        await KeychainService.delete(for: real)
+        let savedKey = await KeychainService.saveASCKey("pem", for: id)
+        await KeychainService.deleteASCKey(for: id)
+        let savedIMAP = await KeychainService.saveIMAPPassword("pw", for: id)
+        await KeychainService.deleteIMAPPassword(for: id)
+        let savedGitHub = await KeychainService.saveGitHubToken("gh", for: id)
+        await KeychainService.deleteGitHubToken(for: id)
+        XCTAssertFalse(savedKey); XCTAssertFalse(savedIMAP); XCTAssertFalse(savedGitHub)
+        XCTAssertEqual(KeychainService.suppressedAccessCount - before, 8)
+    }
+
+    func testMockModeSuppressesEveryKeychainRead() async {
+        // A real repo added in mock mode must not pick up the real iCloud token, or task writes
+        // and attachment downloads would reach real GitHub.
+        let real = ProductConfig(displayName: "Real", owner: "someone", repo: "real-app")
+        let id = UUID()
+        removeKeychainItemsAfterTest(repo: real, ids: [id])
+        LoveLetterApp.applySideEffectPolicy(for: .mock)
+        guard KeychainService.accessSuppressed else {
+            return XCTFail("mock mode must suppress Keychain access")
+        }
+        let before = KeychainService.suppressedAccessCount
+
+        let withStatus = KeychainService.loadWithStatus(for: real)
+        XCTAssertNil(withStatus.token)
+        XCTAssertEqual(withStatus.status, errSecItemNotFound)
+        XCTAssertNil(KeychainService.loadSync(for: real))
+        let loaded = await KeychainService.load(for: real)
+        XCTAssertNil(loaded)
+        let legacySMTP = await KeychainService.loadSMTPPassword()
+        XCTAssertNil(legacySMTP)
+        let legacyIMAP = KeychainService.loadIMAPPasswordResult()
+        XCTAssertNil(legacyIMAP.password)
+        XCTAssertEqual(legacyIMAP.status, errSecItemNotFound)
+        let smtp = await KeychainService.loadSMTPPassword(for: id)
+        XCTAssertNil(smtp)
+        let imap = KeychainService.loadIMAPPasswordResult(for: id)
+        XCTAssertNil(imap.password)
+        XCTAssertEqual(imap.status, errSecItemNotFound)
+        let gitHub = await KeychainService.loadGitHubToken(for: id)
+        XCTAssertNil(gitHub)
+        XCTAssertNil(KeychainService.loadGitHubTokenSync(for: id))
+        let ascKey = await KeychainService.loadASCKey(for: id)
+        XCTAssertNil(ascKey)
+        XCTAssertNil(KeychainService.loadASCKeySync(for: id))
+        // Each load is counted, proving it took the suppressed path rather than finding nothing.
+        XCTAssertEqual(KeychainService.suppressedAccessCount - before, 11)
+    }
+
+    func testLiveAndTestingModesKeepKeychainAccess() {
         LoveLetterApp.applySideEffectPolicy(for: .mock)
         LoveLetterApp.applySideEffectPolicy(for: .live)
-        XCTAssertFalse(KeychainService.writesSuppressed)
+        XCTAssertFalse(KeychainService.accessSuppressed)
         LoveLetterApp.applySideEffectPolicy(for: .testing)
-        XCTAssertFalse(KeychainService.writesSuppressed)
+        XCTAssertFalse(KeychainService.accessSuppressed)
     }
 
     func testMockModeGivesTheAppStoreRegistryNothingToPoll() {

@@ -512,14 +512,15 @@ extension LoveLetterApp {
     enum LaunchMode: Equatable {
         case testing, mock, live
 
-        /// False only in mock mode: no mail sync, no App Store polling, no Keychain writes.
+        /// False only in mock mode: no mail sync, no App Store polling, no Keychain access.
         var runsExternalSources: Bool { self != .mock }
     }
 
-    /// Process-wide switches that must be set before any store or view can write. Mock mode makes
-    /// Keychain writes no-ops so nothing done against fake products can touch real secrets.
+    /// Process-wide switches that must be set before any store or view can touch the Keychain.
+    /// Mock mode makes Keychain reads and writes no-ops so nothing done against fake products can
+    /// read or change real secrets.
     static func applySideEffectPolicy(for mode: LaunchMode) {
-        KeychainService.writesSuppressed = !mode.runsExternalSources
+        KeychainService.accessSuppressed = !mode.runsExternalSources
     }
 
     /// The products the App Store review registry should poll: those with all three ASC fields.

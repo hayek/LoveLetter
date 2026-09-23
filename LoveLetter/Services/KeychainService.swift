@@ -8,22 +8,23 @@ enum KeychainService {
     private static let service = "com.feedbackviewer.tokens"
 
     /// Set once at launch in DEBUG mock-data mode (`LoveLetterApp.applySideEffectPolicy`). While
-    /// true, every save/delete is a no-op: tokens are keyed by owner/repo and sync through iCloud
-    /// Keychain, so a Settings edit made against mock data could otherwise overwrite or delete the
-    /// user's real secrets on every device. Reads are unaffected.
-    nonisolated(unsafe) static var writesSuppressed = false
-    /// How many writes `writesSuppressed` has skipped (for tests).
-    nonisolated(unsafe) private(set) static var suppressedWriteCount = 0
+    /// true, every save/delete is a no-op and every load finds nothing (`errSecItemNotFound`).
+    /// Tokens are keyed by owner/repo and sync through iCloud Keychain, so a Settings edit made
+    /// against mock data could otherwise overwrite or delete the user's real secrets on every
+    /// device, and a real repo added in mock mode would pick up its real token and reach GitHub.
+    nonisolated(unsafe) static var accessSuppressed = false
+    /// How many reads and writes `accessSuppressed` has skipped (for tests).
+    nonisolated(unsafe) private(set) static var suppressedAccessCount = 0
 
-    /// True (and counted) when a write must be skipped.
-    private static func skipWrite() -> Bool {
-        guard writesSuppressed else { return false }
-        suppressedWriteCount += 1
+    /// True (and counted) when a Keychain read or write must be skipped.
+    private static func skipAccess() -> Bool {
+        guard accessSuppressed else { return false }
+        suppressedAccessCount += 1
         return true
     }
 
     static func save(token: String, for repo: ProductConfig) async {
-        if skipWrite() { return }
+        if skipAccess() { return }
         let account = accountKey(for: repo)
         let data = Data(token.utf8)
         let query: [String: Any] = [
@@ -57,6 +58,7 @@ enum KeychainService {
     /// session. Both cases return nil, and telling a user to re-authenticate when they only
     /// need to unlock their Mac sends them down the wrong path.
     static func loadWithStatus(for repo: ProductConfig) -> (token: String?, status: OSStatus) {
+        if skipAccess() { return (nil, errSecItemNotFound) }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -77,7 +79,7 @@ enum KeychainService {
     }
 
     static func delete(for repo: ProductConfig) async {
-        if skipWrite() { return }
+        if skipAccess() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -94,6 +96,7 @@ enum KeychainService {
     private static let smtpAccount = "smtp.password"
 
     static func loadSMTPPassword() async -> String? {
+        if skipAccess() { return nil }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -109,7 +112,7 @@ enum KeychainService {
     }
 
     static func deleteLegacySMTPPassword() async {
-        if skipWrite() { return }
+        if skipAccess() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -129,6 +132,7 @@ enum KeychainService {
     /// distinguish `errSecItemNotFound` (truly missing) from transient failures
     /// like `errSecInteractionNotAllowed` after wake-from-sleep.
     static func loadIMAPPasswordResult() -> (password: String?, status: OSStatus) {
+        if skipAccess() { return (nil, errSecItemNotFound) }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -146,7 +150,7 @@ enum KeychainService {
     }
 
     static func deleteLegacyIMAPPassword() async {
-        if skipWrite() { return }
+        if skipAccess() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -191,6 +195,7 @@ enum KeychainService {
     /// Mirrors `loadIMAPPasswordResult()` so callers can distinguish "missing"
     /// from transient OSStatus failures, per the existing single-account path.
     static func loadIMAPPasswordResult(for accountID: UUID) -> (password: String?, status: OSStatus) {
+        if skipAccess() { return (nil, errSecItemNotFound) }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -229,6 +234,7 @@ enum KeychainService {
     /// Synchronous variant for `@Sendable () -> String?` / non-async callers,
     /// parallelling `loadSync(for:)`.
     static func loadGitHubTokenSync(for accountID: UUID) -> String? {
+        if skipAccess() { return nil }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -265,6 +271,7 @@ enum KeychainService {
     /// Synchronous variant for `@Sendable () -> String?` / non-async callers, paralleling
     /// `loadGitHubTokenSync(for:)`.
     static func loadASCKeySync(for productID: UUID) -> String? {
+        if skipAccess() { return nil }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -286,7 +293,7 @@ enum KeychainService {
     // MARK: - Shared helpers
 
     private static func saveSynchronizablePassword(_ password: String, account: String) async -> Bool {
-        if skipWrite() { return false }
+        if skipAccess() { return false }
         let data = Data(password.utf8)
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
@@ -305,6 +312,7 @@ enum KeychainService {
     }
 
     private static func loadSynchronizablePassword(account: String) async -> String? {
+        if skipAccess() { return nil }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
@@ -320,7 +328,7 @@ enum KeychainService {
     }
 
     private static func deleteSynchronizablePassword(account: String) async {
-        if skipWrite() { return }
+        if skipAccess() { return }
         let query: [String: Any] = [
             kSecClass as String:              kSecClassGenericPassword,
             kSecAttrService as String:        service,
