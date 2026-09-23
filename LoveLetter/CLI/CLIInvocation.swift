@@ -400,12 +400,14 @@ enum CLIInvocation {
             return .versions(.delete(try requireConfirmation(flags,
                 "Deleting a version deletes its GitHub milestone. Tasks are kept.")))
         case "release":
-            if flags.noEmail && (!flags.recipients.isEmpty || flags.resend || flags.subject != nil || flags.body != nil) {
+            if flags.noEmail && (!flags.recipients.isEmpty || !flags.skipRecipients.isEmpty || flags.resend
+                                 || flags.subject != nil || flags.body != nil) {
                 throw CLIUsageError(code: "conflicting_flags",
                                     message: "--no-email cannot be combined with recipient or message flags")
             }
             flags = try requireConfirmation(flags,
-                "Releasing emails every recipient and publishes the GitHub release. It cannot be undone.",
+                "Releasing emails every recipient, closes the milestone and publishes the GitHub release "
+                    + "(with no mail account in Love Letter it only closes the milestone). It cannot be undone.",
                 hint: "Preview with `\(CLIBranding.commandName) versions recipients`, show the user, "
                     + "then re-run with --yes.")
             if !flags.timeoutExplicit { flags.timeout = releaseTimeout }

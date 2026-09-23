@@ -64,8 +64,9 @@ enum ProductSetup {
         updated.displayName = displayName.trimmingCharacters(in: .whitespaces)
         updated.mirrorEmailsToGitHub = mirrorEmailsToGitHub
         updated.redactEmailAddresses = redactEmailAddresses
-        if let token, !token.isEmpty {
-            await secrets.saveToken(token.trimmingCharacters(in: .whitespaces), updated)
+        // Newlines too: a pasted token often carries one, and GitHub rejects it with it.
+        if let token = token?.trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty {
+            await secrets.saveToken(token, updated)
         }
         products.update(updated)
     }

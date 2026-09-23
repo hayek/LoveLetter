@@ -1,6 +1,7 @@
 #if os(macOS)
 import Foundation
 import AppKit
+import os
 
 enum CLIRequestClient {
 
@@ -14,7 +15,11 @@ enum CLIRequestClient {
         guard isAppRunning() else { throw CLIError.appNotRunning }
 
         let directory = CLIIPCTransport.directory
+        // The app only sweeps at launch; reap anything an earlier killed CLI left behind.
+        CLIIPCTransport.sweep(in: directory)
         try CLIIPCTransport.write(request: request, in: directory)
+        pending.withLock { $0 = request.id }
+        defer { pending.withLock { $0 = nil } }
 
         let center = DistributedNotificationCenter.default()
         let response: CLIResponse? = await withCheckedContinuation { continuation in
@@ -39,12 +44,33 @@ enum CLIRequestClient {
         }
 
         guard let response else {
-            throw CLIError.remote(
-                message: "Love Letter did not answer within \(Int(timeout))s.",
-                hint: "The app is running but busy. For a write the outcome is unknown — "
-                    + "check the app before retrying.")
+            throw timedOut(after: timeout, withdrawn: CLIIPCTransport.withdraw(requestID: request.id,
+                                                                                in: directory))
         }
         return response
+    }
+
+    /// A request still on disk when the wait ends was never picked up, so withdrawing it makes
+    /// the outcome certain (nothing ran) and removes any secret it carried. Once claimed, the
+    /// app may still be working on it.
+    static func timedOut(after timeout: TimeInterval, withdrawn: Bool) -> CLIError {
+        withdrawn
+            ? .remote(message: "Love Letter did not pick up the request within \(Int(timeout))s. "
+                             + "Nothing was changed.",
+                      hint: "The app may be hung, or an older build that doesn't know this command. "
+                          + "Quit and reopen Love Letter, then retry.")
+            : .remote(message: "Love Letter did not answer within \(Int(timeout))s.",
+                      hint: "The app is running but busy. For a write the outcome is unknown — "
+                          + "check the app before retrying.")
+    }
+
+    /// The request this process is waiting on, so the watchdog can withdraw it before exiting.
+    private static let pending = OSAllocatedUnfairLock<UUID?>(initialState: nil)
+
+    /// Withdraws the in-flight request, if any. Called by the watchdog on its way out.
+    static func withdrawPending() {
+        guard let id = pending.withLock({ $0 }) else { return }
+        CLIIPCTransport.withdraw(requestID: id, in: CLIIPCTransport.directory)
     }
 
     /// Fire-and-forget nudge: used after a write so the app refreshes without the CLI waiting.

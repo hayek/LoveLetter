@@ -260,6 +260,55 @@ final class CLIRequestResponderTests: XCTestCase {
         XCTAssertEqual(CLIRequestResponder.suspensionBehavior, .deliverImmediately)
     }
 
+    /// A newer CLI's request kind doesn't decode in an older app. It must still be answered —
+    /// otherwise the CLI sits out its whole timeout (ten minutes for a release).
+    @MainActor
+    func testResponderAnswersARequestItCannotDecode() async throws {
+        let id = UUID()
+        try Data(#"{"id":"\#(id.uuidString)","kind":"fromTheFuture","payload":{}}"#.utf8)
+            .write(to: CLIIPCTransport.requestURL(id: id, in: directory))
+        let responder = CLIRequestResponder(directory: directory) { _ in
+            XCTFail("the handler must not run for an unreadable request")
+            return CLIResponse(id: id, ok: true)
+        }
+        await responder.handle(requestID: id)
+
+        let response = try CLIIPCTransport.readResponse(id: id, in: directory)
+        XCTAssertFalse(response.ok)
+        XCTAssertEqual(response.errorCode, "unsupported_request")
+        XCTAssertEqual(response.errorExitCode, CLIExitCode.remote.rawValue)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: CLIIPCTransport.requestURL(id: id, in: directory).path))
+    }
+
+    /// On timeout the CLI takes back a request no app claimed: it may carry a token or password,
+    /// and withdrawing it makes "nothing ran" certain.
+    func testWithdrawRemovesAnUnclaimedRequestOnly() throws {
+        let waiting = CLIRequest(kind: .addProduct, payload: ["token": "secret"])
+        try CLIIPCTransport.write(request: waiting, in: directory)
+        XCTAssertTrue(CLIIPCTransport.withdraw(requestID: waiting.id, in: directory))
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty,
+                      "no copy of the secret is left behind")
+
+        let claimed = CLIRequest(kind: .addProduct, payload: [:])
+        try CLIIPCTransport.write(request: claimed, in: directory)
+        _ = try CLIIPCTransport.readRequest(id: claimed.id, in: directory)
+        XCTAssertFalse(CLIIPCTransport.withdraw(requestID: claimed.id, in: directory),
+                       "once claimed, the app owns it and the outcome is unknown")
+    }
+
+    func testTimeoutSaysWhetherTheWriteCouldHaveRun() {
+        XCTAssertTrue(CLIRequestClient.timedOut(after: 30, withdrawn: true).message.contains("Nothing was changed"))
+        let unknown = CLIRequestClient.timedOut(after: 30, withdrawn: false)
+        XCTAssertFalse(unknown.message.contains("Nothing was changed"))
+        XCTAssertTrue(unknown.hint?.contains("outcome is unknown") == true)
+    }
+
+    func testRequestDirectoryIsOwnerOnly() throws {
+        try CLIIPCTransport.write(request: CLIRequest(kind: .refresh, payload: [:]), in: directory)
+        let permissions = try FileManager.default.attributesOfItem(atPath: directory.path)[.posixPermissions] as? Int
+        XCTAssertEqual(permissions, 0o700, "requests can carry secrets")
+    }
+
     func testClientReportsAppNotRunningWhenTheBundleIsAbsent() {
         XCTAssertFalse(CLIRequestClient.isAppRunning(bundleIdentifier: "com.example.not.running"))
     }

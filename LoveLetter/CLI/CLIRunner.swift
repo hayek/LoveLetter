@@ -19,6 +19,8 @@ enum CLIRunner {
         let limit = watchdogSeconds(for: invocation)
         let watchdog = Thread {
             Thread.sleep(forTimeInterval: limit)
+            // An unclaimed request can carry a token or password; don't leave it behind.
+            CLIRequestClient.withdrawPending()
             exit(emit(error: .remote(
                 message: "\(CLIBranding.commandName) gave up after \(Int(limit))s.",
                 hint: "If this was a write, its outcome is unknown — check Love Letter before "
@@ -617,7 +619,8 @@ enum CLIRunner {
             --subject/--body override the default message; placeholders: {appName}
             {version} {whatsNew} {theirFeedbacks}. --no-email releases without emailing
             anyone. With no mail account set up in Love Letter, a release only closes the
-            milestone, as the app's "Mark released (no email)" does.
+            milestone, as the app's "Mark released (no email)" does: no GitHub release is
+            published, and the result says `"githubRelease": false` with a warning.
             create rolls the version back if its milestone can't be created, so it can
             simply be re-run. Writes need Love Letter running.
             """

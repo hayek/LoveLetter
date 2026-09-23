@@ -138,9 +138,9 @@ extension CLIRequestHandlers {
         let tag: String?
     }
 
-    /// The Release sheet's Send & Release — or, with no mail account, the detail view's
-    /// "Mark released (no email)": email each chosen recipient, then close the milestone and
-    /// publish the release.
+    /// The Release sheet's Send & Release — email each chosen recipient, then close the
+    /// milestone and publish the release. With no mail account it is the detail view's
+    /// "Mark released (no email)" instead: the milestone closes and no GitHub release is published.
     static func releaseVersion(_ request: CLIRequest, deps: Dependencies) async throws -> CLIResponse {
         let app = try requireApp(deps)
         let config = try resolveConfig(request, cloud: deps.cloud)
@@ -201,6 +201,10 @@ extension CLIRequestHandlers {
         if !failed.isEmpty { warnings.append("\(failed.count) release email(s) failed — see Activity in Love Letter.") }
         if canEmail && !published {
             warnings.append("The target repository has no commit to tag, so this was a milestone-only release.")
+        } else if !canEmail {
+            // Said out loud: an agent reading only `ok` would report a published release.
+            warnings.append("No mail account is set up in Love Letter, so this only closed the milestone "
+                            + "(the app's \"Mark released (no email)\"); no GitHub release was published.")
         }
         let tasks = issues.tasks
         return CLIResponse(id: request.id, ok: true, warnings: warnings, json: CLIOutput.encode(ReleaseResult(

@@ -150,7 +150,7 @@ final class AddProductWizardModel {
     }
 
     /// The product as it will be saved. Source secrets (token, .p8, inbox password) are stored
-    /// separately by the view; the email inbox id is attached once its account exists.
+    /// separately by `create`; the email inbox id is attached once its account exists.
     func makeConfig(feedbackInboxAccountID: UUID? = nil) -> ProductConfig {
         let usesAppStore = sources.contains(.appStore)
         return ProductConfig(
@@ -166,6 +166,24 @@ final class AddProductWizardModel {
             appStoreAppAppleID: usesAppStore ? appStore.resolvedAppAppleID() : nil,
             feedbackInboxAccountID: sources.contains(.email) ? feedbackInboxAccountID : nil
         )
+    }
+
+    /// Saves the product, its secrets and (when set up) its email inbox through
+    /// `ProductSetup.create` — the same writes `loveletter products add` makes. An inbox with no
+    /// sender name is named after the product.
+    @discardableResult
+    func create(products: ProductStore, mailAccounts: MailAccountStore,
+                mailRegistry: MailSyncCoordinatorRegistry?,
+                secrets: ProductSecrets = .keychain) async -> ProductConfig {
+        var inbox: ProductSetup.EmailInbox?
+        if sources.contains(.email) {
+            if email.senderName.isEmpty { email.senderName = displayName }
+            inbox = .init(values: email.effectiveAccountValues(), password: email.password)
+        }
+        return await ProductSetup.create(makeConfig(), token: token,
+                                         ascPEM: sources.contains(.appStore) ? appStore.pemText : nil,
+                                         emailInbox: inbox, products: products, mailAccounts: mailAccounts,
+                                         mailRegistry: mailRegistry, secrets: secrets)
     }
 
     private func trimmed(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }

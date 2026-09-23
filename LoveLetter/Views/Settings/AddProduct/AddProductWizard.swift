@@ -530,34 +530,8 @@ struct AddProductWizard: View {
         isCreating = true
         defer { isCreating = false }
 
-        // Secrets first, so the loaders and coordinators that react to the new product find them.
-        var inboxAccountID: UUID?
-        if model.sources.contains(.email) {
-            let mail = model.email
-            if mail.senderName.isEmpty { mail.senderName = model.displayName }
-            let v = mail.effectiveAccountValues()
-            let account = mailAccounts.add { acc in
-                acc.presetRaw = v.presetRaw
-                acc.imapHost = v.imapHost; acc.imapPort = v.imapPort; acc.imapUsername = v.imapUsername
-                acc.smtpHost = v.smtpHost; acc.smtpPort = v.smtpPort; acc.smtpUsername = v.smtpUsername
-                acc.senderName = v.senderName
-                acc.pollingEnabled = v.pollingEnabled
-                acc.feedbackProductID = v.feedbackProductID
-            }
-            _ = await KeychainService.saveIMAPPassword(mail.password, for: account.id)
-            _ = await KeychainService.saveSMTPPassword(mail.password, for: account.id)
-            inboxAccountID = account.id
-        }
-        if model.sources.contains(.appStore) {
-            _ = await KeychainService.saveASCKey(model.appStore.pemText, for: model.productID)
-        }
-
-        let product = model.makeConfig(feedbackInboxAccountID: inboxAccountID)
-        await KeychainService.save(token: model.token.trimmingCharacters(in: .whitespacesAndNewlines), for: product)
         // Adding the product also starts its App Store coordinator (LoveLetterApp syncs on product ids).
-        store.add(product)
-        if inboxAccountID != nil { mailRegistry?.syncWithAccounts() }
-
+        let product = await model.create(products: store, mailAccounts: mailAccounts, mailRegistry: mailRegistry)
         onCreated(product.id)
         dismiss()
     }

@@ -47,8 +47,14 @@ final class CLIRequestResponder: NSObject {
     /// A request this app has already consumed reads as missing and is ignored.
     @MainActor
     func handle(requestID: UUID) async {
-        guard let request = try? CLIIPCTransport.readRequest(id: requestID, in: directory) else { return }
+        guard let data = try? CLIIPCTransport.claimRequest(id: requestID, in: directory) else { return }
         var response: CLIResponse
+        guard let request = try? JSONDecoder().decode(CLIRequest.self, from: data) else {
+            // Claimed but unreadable: almost always a request kind from a newer `loveletter`
+            // than this app. Say so now rather than leaving the CLI to time out.
+            respond(Self.unsupported(requestID))
+            return
+        }
         do {
             response = try await handler(request)
         } catch let error as CLIError {
@@ -61,10 +67,23 @@ final class CLIRequestResponder: NSObject {
                                    errorMessage: error.localizedDescription,
                                    errorExitCode: CLIExitCode.remote.rawValue)
         }
+        respond(response)
+    }
+
+    @MainActor
+    private func respond(_ response: CLIResponse) {
         try? CLIIPCTransport.write(response: response, in: directory)
         DistributedNotificationCenter.default().postNotificationName(
             Notification.Name(CLIBranding.responseNotification),
-            object: nil, userInfo: ["id": requestID.uuidString], deliverImmediately: true)
+            object: nil, userInfo: ["id": response.id.uuidString], deliverImmediately: true)
+    }
+
+    static func unsupported(_ id: UUID) -> CLIResponse {
+        CLIResponse(id: id, ok: false, errorCode: "unsupported_request",
+                    errorMessage: "The running Love Letter doesn't know this command; it is older than "
+                                + "\(CLIBranding.commandName). Nothing was changed.",
+                    errorHint: "Update Love Letter (or quit and reopen it after an update), then retry.",
+                    errorExitCode: CLIExitCode.remote.rawValue)
     }
 }
 

@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import LoveLetter
 
 @MainActor
@@ -130,4 +131,59 @@ final class AddProductWizardModelTests: XCTestCase {
         model.repoIsPrivate = true
         XCTAssertFalse(model.makeConfig().redactEmailAddresses)
     }
+
+    // MARK: - create
+
+    /// The wizard saves through `ProductSetup.create`, as `loveletter products add` does:
+    /// secrets before the product (the loaders reacting to it must find them), the inbox
+    /// account created and linked, and the sender named after the product.
+    func testCreateSavesSecretsFirstThenTheProductWithItsInbox() async throws {
+        let container = try ModelContainer(
+            for: Product.self, Repo.self, MailAccount.self, MailAccountLocalState.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let context = ModelContext(container)
+        let products = ProductStore(context: context)
+        let mailAccounts = MailAccountStore(context: context)
+
+        let model = modelWithRepo()
+        model.token = " ghp_x\n"
+        model.goForward(); model.skip()              // repository → sdk skipped → appStore
+        model.appStore.issuerID = "iss"; model.appStore.keyID = "kid"; model.appStore.pemText = "PEM"
+        model.appStore.discoveredApps = [ASCApp(id: "42", bundleId: "com.acme.app", name: "Acme")]
+        model.appStore.selectedAppID = "42"
+        model.goForward()                            // → email
+        model.email.username = "fb@acme.com"; model.email.password = "pw"
+        model.goForward()                            // → summary
+        XCTAssertEqual(model.sources, [.appStore, .email])
+
+        let log = SecretLog()
+        let productID = model.productID
+        let secrets = ProductSecrets(
+            saveToken: { token, product in
+                let saved = await MainActor.run { products.products.contains { $0.id == product.id } }
+                await log.record("token:\(token):\(saved ? "after" : "before")")
+            },
+            saveASCKey: { pem, id in await log.record("asc:\(pem):\(id == productID)") },
+            saveMailPassword: { password, _ in await log.record("mail:\(password)") })
+
+        let product = await model.create(products: products, mailAccounts: mailAccounts,
+                                         mailRegistry: nil, secrets: secrets)
+
+        let recorded = await log.entries
+        XCTAssertEqual(recorded, ["mail:pw", "asc:PEM:true", "token:ghp_x:before"])
+        let saved = try XCTUnwrap(products.products.first { $0.id == productID })
+        XCTAssertEqual(saved, product)
+        XCTAssertEqual(saved.displayName, "Acme")
+        XCTAssertEqual(saved.appStoreAppAppleID, "42")
+        let inbox = try XCTUnwrap(saved.feedbackInboxAccountID.flatMap { mailAccounts.account(id: $0) })
+        XCTAssertEqual(inbox.imapUsername, "fb@acme.com")
+        XCTAssertEqual(inbox.senderName, "Acme", "an unnamed sender takes the product's name")
+        XCTAssertEqual(inbox.feedbackProductID, productID)
+    }
 }
+
+private actor SecretLog {
+    private(set) var entries: [String] = []
+    func record(_ entry: String) { entries.append(entry) }
+}
+

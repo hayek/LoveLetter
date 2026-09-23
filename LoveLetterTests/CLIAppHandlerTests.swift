@@ -259,6 +259,16 @@ final class CLIAppHandlerTests: XCTestCase {
         XCTAssertTrue(tokens.isEmpty, "no token flag ⇒ the stored token is left alone")
     }
 
+    /// The settings form's Save shares this; a pasted token's trailing newline would break auth.
+    func testSaveGeneralTrimsANewlineFromAPastedToken() async throws {
+        let product = addProduct()
+        await ProductSetup.saveGeneral(product, displayName: "P", mirrorEmailsToGitHub: true,
+                                       redactEmailAddresses: true, token: " ghp_x\n",
+                                       products: products, secrets: secrets.secrets)
+        let saved = await secrets.tokens
+        XCTAssertEqual(saved.map(\.token), ["ghp_x"])
+    }
+
     func testUpdateWithANewTokenVerifiesAndStoresIt() async throws {
         addProduct()
         _ = try await CLIRequestHandlers.updateProduct(request(.updateProduct, ["product": "P", "token": "fresh"]),
@@ -529,10 +539,13 @@ final class CLIAppHandlerTests: XCTestCase {
     func testReleaseNoEmailWithoutAMailAccountIsMarkReleased() async throws {
         let version = try seedRelease()
         stubGitHub(json: #"{"number":7,"title":"1.2.0","state":"closed","description":""}"#)
-        _ = try await CLIRequestHandlers.releaseVersion(
+        let response = try await CLIRequestHandlers.releaseVersion(
             request(.releaseVersion, ["product": "P", "version": "1.2.0", "noEmail": "1"]), deps: makeDeps())
         XCTAssertTrue(version.releasePublished)
         XCTAssertEqual(requests.all.map(\.httpMethod), ["PATCH"])
+        XCTAssertFalse(try decode(CLIRequestHandlers.ReleaseResult.self, response).githubRelease)
+        XCTAssertTrue(response.warnings.contains { $0.contains("no GitHub release was published") },
+                      "an agent reading only `ok` must not report a published release")
     }
 
     func testReleasingAReleasedVersionIsRefused() async throws {

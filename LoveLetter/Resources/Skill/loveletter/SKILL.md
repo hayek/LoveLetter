@@ -138,6 +138,7 @@ A version is a GitHub milestone; tasks join it with `tasks update --version`.
 `state` is `new` (no task started), `wip` or `released`.
 
 **Releasing emails real users and publishes a GitHub release. It cannot be undone.**
+(Without a mail account in Love Letter it only closes the milestone — see below.)
 Always preview first, show the user who will be emailed and the message, and release only
 after they explicitly agree:
 
@@ -152,7 +153,9 @@ Narrow with `--recipient <email>` / `--skip <email>` (use `--include-emails` on
 `recipients` to see full addresses). `--subject` / `--body` replace the default message;
 placeholders: `{appName}` `{version}` `{whatsNew}` `{theirFeedbacks}`. `--no-email` releases
 without emailing anyone. Without a mail account in Love Letter, a release only closes the
-milestone (the app's "Mark released (no email)").
+milestone (the app's "Mark released (no email)"): **no GitHub release is published** — the
+result has `"githubRelease": false` and a warning; tell the user. `--no-email` with a mail
+account still publishes the GitHub release.
 
 ## 7. Products and their sources
 
@@ -166,7 +169,8 @@ Add a product for a GitHub repository (the one the SDK files feedback into):
 GitHub account that can see the repository (`--account <login>` picks one). Otherwise pipe a
 token with Issues read/write access on stdin — `gh auth token | loveletter products add
 --repo owner/repo --token-stdin` — and only with the user's OK. The repo is checked before
-anything is saved; exit 4 means no token could see it.
+anything is saved; exit 4 means no token could see it, and `missing_flag` (exit 1) means no
+GitHub account is connected, so a token must be piped.
 
     loveletter products update --product "My App" --name "…" --color sky \
         --mirror-emails on|off --redact-emails on|off [--token-stdin | --account <login>]

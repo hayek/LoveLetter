@@ -263,6 +263,8 @@ final class CLIParityCommandTests: XCTestCase {
     func testReleaseNoEmailConflictsWithRecipientFlags() {
         XCTAssertEqual(failure("versions", "release", "--product", "P", "--version", "1.0", "--yes", "--no-email",
                                "--recipient", "a@b.c")?.code, "conflicting_flags")
+        XCTAssertEqual(failure("versions", "release", "--product", "P", "--version", "1.0", "--yes", "--no-email",
+                               "--skip", "a@b.c")?.code, "conflicting_flags")
     }
 
     func testReleaseWirePayloadSeparatesRecipientsByNewline() throws {

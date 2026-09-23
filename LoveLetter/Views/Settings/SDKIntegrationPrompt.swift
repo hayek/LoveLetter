@@ -5,14 +5,17 @@ import Foundation
 /// sets up the GitHub repository the feedback lands in, and adds that repository to Love Letter
 /// as a product through the `loveletter` CLI.
 enum SDKIntegrationPrompt {
-    /// The prompt for a product that's already set up in Love Letter: the repository is decided,
-    /// so the agent skips choosing or creating one and wires the SDK straight to it.
+    /// The prompt copied from the Add Product wizard: the repository is decided, so the agent
+    /// skips choosing or creating one and wires the SDK straight to it. The product is copied
+    /// *before* the wizard creates it — and the user may cancel — so section 6 still checks
+    /// `loveletter products` rather than assuming it exists.
     static func text(owner: String, repo: String) -> String {
         """
-        The feedback repository is already chosen and added to Love Letter: \
-        `\(owner)/\(repo)`. Use it — skip creating or choosing a repository in section 2 (still \
-        make sure its labels exist), and skip adding the product to Love Letter in section 6 \
-        (it's already there); just hand off.
+        The feedback repository is already chosen: `\(owner)/\(repo)`, and I'm adding it to \
+        Love Letter myself. Use it — skip creating or choosing a repository in section 2 (still \
+        make sure its labels exist). In section 6 don't add the product unless I ask: run \
+        `loveletter products` and, if `\(owner)/\(repo)` isn't listed, remind me to finish \
+        adding it in Love Letter; then hand off.
 
 
         """ + text

@@ -51,12 +51,28 @@ enum CLIIPCTransport {
     /// loser sees ENOENT and treats the request as already consumed. `rename` preserves the
     /// modification date, so a claimed file a crash left behind is still reaped by `sweep`.
     static func readRequest(id: UUID, in directory: URL) throws -> CLIRequest {
+        try JSONDecoder().decode(CLIRequest.self, from: try claimRequest(id: id, in: directory))
+    }
+
+    /// The claim behind `readRequest`, returning the raw bytes: a request that claims fine but
+    /// doesn't decode (a newer CLI's request kind) still has to be answered, or its CLI would
+    /// sit out the whole timeout.
+    static func claimRequest(id: UUID, in directory: URL) throws -> Data {
         let claimed = claimURL(id: id, in: directory)
         guard rename(requestURL(id: id, in: directory).path, claimed.path) == 0 else {
             throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
         }
         defer { try? FileManager.default.removeItem(at: claimed) }
-        return try JSONDecoder().decode(CLIRequest.self, from: try Data(contentsOf: claimed))
+        return try Data(contentsOf: claimed)
+    }
+
+    /// Takes back a request no app has claimed yet — the CLI's side of a timeout. True when the
+    /// file was still waiting, which means the write never ran and never will; false once an app
+    /// has claimed it (its outcome is then unknown). Either way no secret the request carried is
+    /// left on disk by this CLI.
+    @discardableResult
+    static func withdraw(requestID id: UUID, in directory: URL) -> Bool {
+        unlink(requestURL(id: id, in: directory).path) == 0
     }
 
     static func write(response: CLIResponse, in directory: URL) throws {
