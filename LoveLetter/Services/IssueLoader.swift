@@ -370,9 +370,6 @@ final class IssueLoader {
         state = .loaded(issues, Date(timeIntervalSince1970: 0))
     }
 
-    /// Removes a deleted issue from the cache and the current loaded state. The incremental
-    /// fetch (`since:`) never returns deleted issues, so without this a deleted task lingers in
-    /// the cache and reappears on the next launch (loaded from cache before the first fetch).
     /// Mock-data mode: serve the locally seeded cache as the final state. No token, no network.
     /// Stamped with `Date()` (not the epoch sentinel) because there is no fresher data coming,
     /// and an empty cache still becomes `.loaded([])` so the list never spins forever.
@@ -380,6 +377,9 @@ final class IssueLoader {
         state = .loaded(loadOpenIssuesFromCache(), Date())
     }
 
+    /// Removes a deleted issue from the cache and the current loaded state. The incremental
+    /// fetch (`since:`) never returns deleted issues, so without this a deleted task lingers in
+    /// the cache and reappears on the next launch (loaded from cache before the first fetch).
     func purgeFromCache(number: Int) {
         if let context = cacheContext {
             let owner = config.owner
