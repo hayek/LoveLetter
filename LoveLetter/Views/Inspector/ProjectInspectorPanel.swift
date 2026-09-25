@@ -313,14 +313,16 @@ private enum InspectorTaskRow: Identifiable {
         }
     }
 
-    /// (priority rank, pending-flag, tiebreak). Within a priority, real tasks (flag 0, by issue
-    /// number) come first and placeholders (flag 1, by creation order) after — so a placeholder
-    /// sits where its brand-new (highest-numbered) issue will land, and several placeholders keep
-    /// a stable oldest-first order. Hand-off to the real card causes no reorder.
-    var sortKey: (Int, Int, Int) {
+    /// (done-flag, priority rank, pending-flag, tiebreak). Done tasks sink below every open one.
+    /// Within a priority, real tasks (flag 0, by issue number) come first and placeholders (flag 1,
+    /// by creation order) after — so a placeholder sits where its brand-new (highest-numbered)
+    /// issue will land, and several placeholders keep a stable oldest-first order. Hand-off to
+    /// the real card causes no reorder.
+    var sortKey: (Int, Int, Int, Int) {
         switch self {
-        case .task(let task, _): return (task.priority.sortRank, 0, task.number)
-        case .pending(let creation): return (creation.draft.priority.sortRank, 1, creation.sequence)
+        case .task(let task, _):
+            return (task.isCompleted ? 1 : 0, task.priority.sortRank, 0, task.number)
+        case .pending(let creation): return (0, creation.draft.priority.sortRank, 1, creation.sequence)
         }
     }
 }

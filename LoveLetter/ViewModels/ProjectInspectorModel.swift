@@ -281,7 +281,7 @@ final class ProjectInspectorModel {
         var result = incoming
         for (number, refs) in pendingRefs {
             guard let index = result.firstIndex(where: { $0.number == number }) else {
-                pendingRefs[number] = nil        // task gone upstream (closed/deleted) — drop it
+                pendingRefs[number] = nil        // task gone upstream (deleted) — drop it
                 continue
             }
             if Set(result[index].feedbackRefs) == Set(refs) {

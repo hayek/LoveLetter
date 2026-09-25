@@ -8,10 +8,14 @@ final class IssueLoaderTests: XCTestCase {
     private let repo = ProductConfig(displayName: "Test", owner: "org", repo: "feedback")
     private var container: ModelContainer!
     private var context: ModelContext!
+    private var defaults: UserDefaults!
+    private let suiteName = "IssueLoaderTests"
 
     override func setUp() {
         super.setUp()
         MockURLProtocol.requestHandler = nil
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        defaults = UserDefaults(suiteName: suiteName)!
         let schema = Schema([CachedIssue.self, RepoFetchState.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         container = try! ModelContainer(for: schema, configurations: config)
@@ -21,11 +25,12 @@ final class IssueLoaderTests: XCTestCase {
     override func tearDown() {
         container = nil
         context = nil
+        UserDefaults().removePersistentDomain(forName: suiteName)
         super.tearDown()
     }
 
     private func makeLoader() -> IssueLoader {
-        IssueLoader(config: repo, session: .mock, cacheContext: context)
+        IssueLoader(config: repo, session: .mock, cacheContext: context, defaults: defaults)
     }
 
     // MARK: - GraphQL response helpers
@@ -33,6 +38,15 @@ final class IssueLoaderTests: XCTestCase {
     /// Builds a GraphQL JSON response shaped like `{ "data": { "repository": { "issues": ... } } }`.
     private func makeGraphQLResponse(
         issues: [(number: Int, title: String, body: String, state: String)],
+        hasNextPage: Bool = false,
+        endCursor: String? = nil
+    ) -> Data {
+        makeGraphQLResponse(labelled: issues.map { ($0.number, $0.title, $0.body, $0.state, []) },
+                            hasNextPage: hasNextPage, endCursor: endCursor)
+    }
+
+    private func makeGraphQLResponse(
+        labelled issues: [(number: Int, title: String, body: String, state: String, labels: [String])],
         hasNextPage: Bool = false,
         endCursor: String? = nil
     ) -> Data {
@@ -44,7 +58,7 @@ final class IssueLoaderTests: XCTestCase {
                 "createdAt": "2024-01-01T10:00:00Z",
                 "updatedAt": "2024-01-01T10:00:00Z",
                 "state": issue.state,
-                "labels": ["nodes": [] as [Any]],
+                "labels": ["nodes": issue.labels.map { ["name": $0, "color": "ffffff"] }],
             ]
         }
         let body: [String: Any] = [
@@ -62,6 +76,30 @@ final class IssueLoaderTests: XCTestCase {
         ]
         return try! JSONSerialization.data(withJSONObject: body)
     }
+
+    /// The GraphQL `variables` of a mocked request. URLSession moves `httpBody` onto
+    /// `httpBodyStream` before URLProtocol sees the request, so read the stream.
+    nonisolated private static func variables(of req: URLRequest) -> [String: Any] {
+        guard let stream = req.httpBodyStream else { return [:] }
+        stream.open()
+        defer { stream.close() }
+        var collected = Data()
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        while stream.hasBytesAvailable {
+            let read = stream.read(&buffer, maxLength: buffer.count)
+            if read <= 0 { break }
+            collected.append(buffer, count: read)
+        }
+        let parsed = try? JSONSerialization.jsonObject(with: collected) as? [String: Any]
+        return parsed?["variables"] as? [String: Any] ?? [:]
+    }
+
+    /// Whether a mocked request is the full refresh's closed-tasks query.
+    nonisolated private static func isClosedTasksQuery(_ req: URLRequest) -> Bool {
+        variables(of: req)["states"] as? [String] == ["CLOSED"]
+    }
+
+    private static let task = LoveLetterLabels.task
 
     private static let canonicalIssueBody = "Description\n\n---\n**Device Information:**\nApp: TestApp\nApp Version: 1.0 (1)\nDevice: Mac\nmacOS Version: 14.0"
 
@@ -237,6 +275,121 @@ final class IssueLoaderTests: XCTestCase {
         XCTAssertTrue(issues.isEmpty, "closed issue should be filtered out of the open list")
     }
 
+    func test_fullRefresh_includesClosedTasks_butNotClosedFeedback() async throws {
+        let openData = makeGraphQLResponse(labelled: [(1, "Open feedback", Self.canonicalIssueBody, "OPEN", [])])
+        // The server honours the label filter; a stray closed feedback row must still be ignored.
+        let closedData = makeGraphQLResponse(labelled: [
+            (5, "Shipped task", "", "CLOSED", [Self.task]),
+            (6, "Closed feedback", Self.canonicalIssueBody, "CLOSED", []),
+        ])
+        let closedLabels = OSAllocatedUnfairLock<[String]?>(initialState: nil)
+        MockURLProtocol.requestHandler = { req in
+            let closed = Self.isClosedTasksQuery(req)
+            if closed { closedLabels.withLock { $0 = Self.variables(of: req)["labels"] as? [String] } }
+            return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    closed ? closedData : openData)
+        }
+        let loader = makeLoader()
+        await loader.load(token: "tok")
+
+        XCTAssertEqual(closedLabels.withLock { $0 }, [Self.task], "closed query must filter by the task label")
+        guard case .loaded(let issues, _) = loader.state else { return XCTFail("Expected .loaded") }
+        XCTAssertEqual(Set(issues.map(\.number)), [1, 5])
+        XCTAssertEqual(issues.first { $0.number == 5 }?.state, .closed)
+    }
+
+    func test_incrementalRefresh_keepsClosedTaskAsDone() async throws {
+        let firstData = makeGraphQLResponse(labelled: [(1, "Task", "", "OPEN", [Self.task])])
+        let empty = makeGraphQLResponse(issues: [])
+        MockURLProtocol.requestHandler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+             Self.isClosedTasksQuery(req) ? empty : firstData)
+        }
+        await makeLoader().load(token: "tok")
+
+        // Incremental: the cached task was closed, and a never-cached task arrives already closed.
+        let secondData = makeGraphQLResponse(labelled: [
+            (1, "Task", "", "CLOSED", [Self.task]),
+            (2, "Other task", "", "CLOSED", [Self.task]),
+        ])
+        let sentSince = OSAllocatedUnfairLock<Bool>(initialState: false)
+        MockURLProtocol.requestHandler = { req in
+            if Self.variables(of: req)["since"] != nil { sentSince.withLock { $0 = true } }
+            return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, secondData)
+        }
+        let loader = makeLoader()
+        await loader.load(token: "tok")
+
+        XCTAssertTrue(sentSince.withLock { $0 }, "second load must be incremental")
+        guard case .loaded(let issues, _) = loader.state else { return XCTFail("Expected .loaded") }
+        XCTAssertEqual(Set(issues.map(\.number)), [1, 2])
+        XCTAssertTrue(issues.allSatisfy { $0.state == .closed })
+    }
+
+    func test_fullRefresh_closesThenDropsCachedTaskMissingUpstream() async throws {
+        let firstData = makeGraphQLResponse(labelled: [
+            (1, "Task", "", "OPEN", [Self.task]),
+            (2, "Feedback", Self.canonicalIssueBody, "OPEN", []),
+        ])
+        let empty = makeGraphQLResponse(issues: [])
+        MockURLProtocol.requestHandler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+             Self.isClosedTasksQuery(req) ? empty : firstData)
+        }
+        await makeLoader().load(token: "tok")
+
+        // Full reconcile: both are gone from the open list, and the task isn't among closed tasks
+        // (deleted upstream — or the closed-tasks query lags a close just made).
+        MockURLProtocol.requestHandler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, empty)
+        }
+        let loader = makeLoader()
+        await loader.load(token: "tok", fullReconcile: true)
+
+        guard case .loaded(let afterFirst, _) = loader.state else { return XCTFail("Expected .loaded") }
+        XCTAssertEqual(afterFirst.map(\.number), [1], "a vanished open task first reads as done, not gone")
+        XCTAssertEqual(afterFirst.first?.state, .closed)
+
+        // Still missing on the next full reconcile: now it's really gone upstream.
+        await loader.load(token: "tok", fullReconcile: true)
+        guard case .loaded(let afterSecond, _) = loader.state else { return XCTFail("Expected .loaded") }
+        XCTAssertTrue(afterSecond.isEmpty)
+        let rows = try context.fetch(FetchDescriptor<CachedIssue>())
+        XCTAssertEqual(rows.map(\.number), [2], "the vanished task is purged")
+        XCTAssertEqual(rows.first?.state, IssueState.closed.rawValue, "vanished feedback is kept, marked closed")
+    }
+
+    func test_outdatedSyncVersion_forcesOneFullRefresh() async throws {
+        // A cache filled by a build that didn't fetch closed tasks.
+        context.insert(RepoFetchState(repoOwner: "org", repoName: "feedback",
+                                      lastFetchedAt: Date(timeIntervalSince1970: 1_750_000_000), etag: "\"old\""))
+        try context.save()
+
+        let closedData = makeGraphQLResponse(labelled: [(5, "Shipped task", "", "CLOSED", [Self.task])])
+        let empty = makeGraphQLResponse(issues: [])
+        let sawSince = OSAllocatedUnfairLock<Bool>(initialState: false)
+        let sawClosedQuery = OSAllocatedUnfairLock<Bool>(initialState: false)
+        MockURLProtocol.requestHandler = { req in
+            if Self.variables(of: req)["since"] != nil { sawSince.withLock { $0 = true } }
+            let closed = Self.isClosedTasksQuery(req)
+            if closed { sawClosedQuery.withLock { $0 = true } }
+            return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    closed ? closedData : empty)
+        }
+        let loader = makeLoader()
+        await loader.load(token: "tok")
+
+        XCTAssertFalse(sawSince.withLock { $0 }, "an outdated sync version must force a full refresh")
+        XCTAssertTrue(sawClosedQuery.withLock { $0 })
+        guard case .loaded(let issues, _) = loader.state else { return XCTFail("Expected .loaded") }
+        XCTAssertEqual(issues.map(\.number), [5])
+
+        // Stamped: the next load goes back to incremental.
+        sawSince.withLock { $0 = false }
+        await loader.load(token: "tok")
+        XCTAssertTrue(sawSince.withLock { $0 })
+    }
+
     func test_pagination_terminatesAndChainsCursor() async throws {
         // Two-page response where the first page advertises hasNextPage: true.
         // Verifies (a) we don't call past hasNextPage: false, and (b) the second
@@ -253,29 +406,18 @@ final class IssueLoaderTests: XCTestCase {
         )
         let requestCount = OSAllocatedUnfairLock<Int>(initialState: 0)
         let secondAfter = OSAllocatedUnfairLock<String?>(initialState: nil)
+        let emptyPage = makeGraphQLResponse(issues: [])
         MockURLProtocol.requestHandler = { req in
+            let variables = Self.variables(of: req)
+            // The full refresh's closed-tasks query is a separate pagination; not under test here.
+            if variables["states"] as? [String] == ["CLOSED"] {
+                return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, emptyPage)
+            }
             let n = requestCount.withLock { count -> Int in
                 count += 1
                 return count
             }
-            // URLSession moves httpBody onto httpBodyStream before URLProtocol sees the request,
-            // so reach for the stream instead of `httpBody` (which is nil here).
-            let bodyData: Data? = {
-                guard let stream = req.httpBodyStream else { return nil }
-                stream.open()
-                defer { stream.close() }
-                var collected = Data()
-                var buffer = [UInt8](repeating: 0, count: 1024)
-                while stream.hasBytesAvailable {
-                    let read = stream.read(&buffer, maxLength: buffer.count)
-                    if read <= 0 { break }
-                    collected.append(buffer, count: read)
-                }
-                return collected
-            }()
-            let parsed = bodyData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-            let variables = parsed?["variables"] as? [String: Any]
-            let after = variables?["after"] as? String
+            let after = variables["after"] as? String
             if n == 2 { secondAfter.withLock { $0 = after } }
             let res = HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (res, n == 1 ? firstPageData : secondPageData)
@@ -347,7 +489,7 @@ final class IssueLoaderTests: XCTestCase {
 
     // MARK: - Cache-only (mock data mode)
 
-    func test_loadCachedOnly_servesOpenRowsWithoutNetwork() {
+    func test_loadCachedOnly_servesOpenRowsAndClosedTasksWithoutNetwork() {
         MockURLProtocol.requestHandler = { _ in
             XCTFail("cache-only load must not touch the network")
             throw URLError(.notConnectedToInternet)
@@ -360,14 +502,19 @@ final class IssueLoaderTests: XCTestCase {
                                  createdAt: Date(timeIntervalSince1970: 1_750_000_000), state: .closed,
                                  rawBody: "", appName: nil, appVersion: nil, device: nil, osVersion: nil,
                                  email: nil, issueDescription: "d")
-        context.insert(open); context.insert(closed)
+        let closedTask = CachedIssue(repoOwner: "org", repoName: "feedback", number: 3, title: "Done task",
+                                     createdAt: Date(timeIntervalSince1970: 1_750_000_000), state: .closed,
+                                     rawBody: "", appName: nil, appVersion: nil, device: nil, osVersion: nil,
+                                     email: nil, issueDescription: "d",
+                                     labels: [IssueLabel(name: Self.task, colorHex: "ffffff")])
+        context.insert(open); context.insert(closed); context.insert(closedTask)
         try! context.save()
 
         let loader = makeLoader()
         loader.loadCachedOnly()
 
         guard case .loaded(let issues, let date) = loader.state else { return XCTFail("expected .loaded, got \(loader.state)") }
-        XCTAssertEqual(issues.map(\.number), [1])
+        XCTAssertEqual(issues.map(\.number), [1, 3], "open rows plus closed tasks; closed feedback stays out")
         XCTAssertFalse(loader.isShowingCachedData, "cache-only is the final state, not the stale-cache sentinel")
         XCTAssertNotEqual(date, Date(timeIntervalSince1970: 0))
     }

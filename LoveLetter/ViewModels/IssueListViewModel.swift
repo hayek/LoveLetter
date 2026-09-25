@@ -152,8 +152,10 @@ final class IssueListViewModel {
     func applyLoaded(_ issues: [FeedbackIssue]) {
         let taskIssues = issues.filter(TaskItem.isTask)
         let feedbackIssues = issues.filter { !TaskItem.isTask($0) }
+        // Done tasks (closed issues load too) sink below every open one.
         tasks = taskIssues.map(TaskItem.init).sorted {
-            ($0.priority.sortRank, $0.number) < ($1.priority.sortRank, $1.number)
+            ($0.isCompleted ? 1 : 0, $0.priority.sortRank, $0.number)
+                < ($1.isCompleted ? 1 : 0, $1.priority.sortRank, $1.number)
         }
         let issues = feedbackIssues       // shadow so the rest of the method is unchanged
         let priorByNumber = Dictionary(uniqueKeysWithValues: allIssues.map { ($0.number, $0) })

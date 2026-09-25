@@ -83,7 +83,8 @@ final class FeedbackTriageCoordinator {
 
     /// Applies a pending suggestion (chip Accept).
     func accept(record: TriageVerdictRecord, repo: ProductConfig, issues: [FeedbackIssue]) async throws {
-        let tasks = issues.filter(TaskItem.isTask).map(TaskItem.init(issue:))
+        // Done tasks load too; a suggestion made before its task was closed must not attach to it.
+        let tasks = issues.filter(TaskItem.isTask).map(TaskItem.init(issue:)).filter { !$0.isCompleted }
         if let n = record.suggestedTaskNumber, let task = tasks.first(where: { $0.number == n }) {
             try await applier.assign(feedbackNumber: record.feedbackNumber, to: task, in: repo)
             store.setState(record, .accepted)

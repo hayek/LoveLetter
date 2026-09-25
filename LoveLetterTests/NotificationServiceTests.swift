@@ -37,6 +37,18 @@ final class NotificationServiceTests: XCTestCase {
         )
     }
 
+    func test_diffAndNotify_closedIssueIsRecordedWithoutNotifying() async {
+        var closedTask = issue(1)
+        closedTask.state = .closed
+        let svc = service()
+        await svc.diffAndNotify(loadedByRepo: [("foo", "bar", [closedTask])])
+        XCTAssertEqual(center.addedRequests.count, 0, "a task first seen already closed is not new")
+
+        // Reopened later: still not announced as new.
+        await svc.diffAndNotify(loadedByRepo: [("foo", "bar", [issue(1)])])
+        XCTAssertEqual(center.addedRequests.count, 0)
+    }
+
     func test_diffAndNotify_postsZeroWhenNoNew() async {
         notified.snapshot(["foo/bar#1"])
         await service().diffAndNotify(loadedByRepo: [("foo", "bar", [issue(1)])])

@@ -28,16 +28,23 @@ final class NotificationService: NSObject {
         guard settings.isEnabled else { return }
 
         var newOnes: [(repoOwner: String, repoName: String, issue: FeedbackIssue, key: String)] = []
+        var closedUnseen: [String] = []
         for group in loadedByRepo {
             for issue in group.issues {
                 let key = NotifiedIssueStore.issueKey(
                     owner: group.owner, repo: group.repo, number: issue.number
                 )
-                if !notifiedStore.contains(key) {
+                guard !notifiedStore.contains(key) else { continue }
+                // Closed tasks load too (shown as done); one first seen already closed is old
+                // news. Record it silently so a later reopen doesn't announce it as new either.
+                if issue.state == .closed {
+                    closedUnseen.append(key)
+                } else {
                     newOnes.append((group.owner, group.repo, issue, key))
                 }
             }
         }
+        if !closedUnseen.isEmpty { notifiedStore.insert(closedUnseen) }
         guard !newOnes.isEmpty else { return }
 
         if newOnes.count <= 3 {

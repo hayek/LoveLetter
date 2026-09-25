@@ -37,13 +37,22 @@ final class IssueLoader {
     private var inFlight: (token: String, task: Task<Void, Never>)?
     private let activityLog: ActivityLog?
 
+    /// Bumped whenever a full refresh starts fetching something a cache filled by an older build
+    /// lacks; a repo whose last full refresh stamped an older version is forced full on its next
+    /// load. 1: closed tasks. Kept in UserDefaults, not on `RepoFetchState`: a new SwiftData
+    /// attribute would break the CLI's read-only open of a store the app hasn't migrated yet.
+    static let syncVersion = 1
+    private let defaults: UserDefaults
+
     init(
         config: ProductConfig,
         session: URLSession = .shared,
         activityLog: ActivityLog? = nil,
-        cacheContext: ModelContext? = nil
+        cacheContext: ModelContext? = nil,
+        defaults: UserDefaults = .standard
     ) {
         self.config = config
+        self.defaults = defaults
         self.session = session
         self.activityLog = activityLog
         self.cacheContext = cacheContext
@@ -84,26 +93,34 @@ final class IssueLoader {
         let fetchStartedAt = Date()
         let prior = readFetchState()
         let isIncremental = prior.lastFetchedAt != nil && !fullReconcile
+            && prior.syncVersion >= Self.syncVersion
 
         do {
             let outcome = try await fetchAllPages(
                 token: token,
                 since: isIncremental ? prior.lastFetchedAt : nil,
                 etag: isIncremental ? prior.etag : nil,
-                includeClosed: isIncremental
+                states: isIncremental ? ["OPEN", "CLOSED"] : ["OPEN"]
             )
             switch outcome {
             case .notModified:
-                persistFetchState(lastFetchedAt: fetchStartedAt, etag: prior.etag)
-                let issues = loadOpenIssuesFromCache()
+                persistFetchState(lastFetchedAt: fetchStartedAt, etag: prior.etag, completedFull: false)
+                let issues = loadVisibleIssuesFromCache()
                 state = .loaded(issues, Date())
                 if let entryID {
                     activityLog?.finish(entryID, status: .success, detail: "no changes")
                 }
-            case .updated(let fetched, let newEtag):
+            case .updated(var fetched, let newEtag):
+                if !isIncremental {
+                    // A full refresh asks for OPEN issues only (closed feedback is never shown),
+                    // so closed tasks — shown as done — come from a second, label-filtered query.
+                    let openNumbers = Set(fetched.map(\.number))
+                    fetched += try await fetchClosedTasks(token: token)
+                        .filter { !openNumbers.contains($0.number) }
+                }
                 mergeToCache(fetched, isFullRefresh: !isIncremental)
-                persistFetchState(lastFetchedAt: fetchStartedAt, etag: newEtag)
-                let issues = loadOpenIssuesFromCache()
+                persistFetchState(lastFetchedAt: fetchStartedAt, etag: newEtag, completedFull: !isIncremental)
+                let issues = loadVisibleIssuesFromCache()
                 state = .loaded(issues, Date())
                 if let entryID {
                     let n = fetched.count
@@ -141,7 +158,8 @@ final class IssueLoader {
         token: String,
         since: Date?,
         etag: String?,
-        includeClosed: Bool
+        states: [String],
+        labels: [String]? = nil
     ) async throws -> FetchOutcome {
         var collected: [FeedbackIssue] = []
         var cursor: String? = nil
@@ -158,7 +176,8 @@ final class IssueLoader {
                 cursor: cursor,
                 since: since,
                 etag: pageIndex == 0 ? etag : nil,
-                includeClosed: includeClosed
+                states: states,
+                labels: labels
             )
             switch outcome {
             case .notModified:
@@ -175,6 +194,15 @@ final class IssueLoader {
         return .updated(issues: collected, etag: firstPageEtag)
     }
 
+    /// Every closed task issue. Filtered defensively to closed tasks, since the merge trusts this
+    /// list as the canonical set of closed tasks.
+    private func fetchClosedTasks(token: String) async throws -> [FeedbackIssue] {
+        let outcome = try await fetchAllPages(token: token, since: nil, etag: nil,
+                                              states: ["CLOSED"], labels: [LoveLetterLabels.task])
+        guard case .updated(let issues, _) = outcome else { return [] }
+        return issues.filter { $0.state == .closed && TaskItem.isTask($0) }
+    }
+
     private struct PageResult {
         let nodes: [FeedbackIssue]
         let hasNextPage: Bool
@@ -188,9 +216,9 @@ final class IssueLoader {
     }()
 
     private static let issuesQuery = """
-    query($owner: String!, $name: String!, $first: Int!, $after: String, $states: [IssueState!]!, $since: DateTime) {
+    query($owner: String!, $name: String!, $first: Int!, $after: String, $states: [IssueState!]!, $labels: [String!], $since: DateTime) {
       repository(owner: $owner, name: $name) {
-        issues(first: $first, after: $after, states: $states, orderBy: {field: UPDATED_AT, direction: DESC}, filterBy: {since: $since}) {
+        issues(first: $first, after: $after, states: $states, labels: $labels, orderBy: {field: UPDATED_AT, direction: DESC}, filterBy: {since: $since}) {
           pageInfo { hasNextPage endCursor }
           nodes {
             number
@@ -212,14 +240,16 @@ final class IssueLoader {
         cursor: String?,
         since: Date?,
         etag: String?,
-        includeClosed: Bool
+        states: [String],
+        labels: [String]?
     ) async throws -> PageOutcome {
         var variables: [String: Any] = [
             "owner": config.owner,
             "name": config.repo,
             "first": 100,
-            "states": includeClosed ? ["OPEN", "CLOSED"] : ["OPEN"],
+            "states": states,
         ]
+        if let labels { variables["labels"] = labels }
         if let cursor { variables["after"] = cursor }
         if let since {
             variables["since"] = Self.iso8601Formatter.string(from: since)
@@ -365,7 +395,7 @@ final class IssueLoader {
     // MARK: - Cache
 
     private func loadFromCache() {
-        let issues = loadOpenIssuesFromCache()
+        let issues = loadVisibleIssuesFromCache()
         guard !issues.isEmpty else { return }
         state = .loaded(issues, Date(timeIntervalSince1970: 0))
     }
@@ -374,7 +404,7 @@ final class IssueLoader {
     /// Stamped with `Date()` (not the epoch sentinel) because there is no fresher data coming,
     /// and an empty cache still becomes `.loaded([])` so the list never spins forever.
     func loadCachedOnly() {
-        state = .loaded(loadOpenIssuesFromCache(), Date())
+        state = .loaded(loadVisibleIssuesFromCache(), Date())
     }
 
     /// Removes a deleted issue from the cache and the current loaded state. The incremental
@@ -395,21 +425,29 @@ final class IssueLoader {
         }
     }
 
-    private func loadOpenIssuesFromCache() -> [FeedbackIssue] {
+    /// Open issues plus closed tasks, which the app shows as done. Closed feedback stays out.
+    private func loadVisibleIssuesFromCache() -> [FeedbackIssue] {
         guard let context = cacheContext else { return [] }
         let owner = config.owner
         let name = config.repo
         let openRaw = IssueState.open.rawValue
-        let descriptor = FetchDescriptor<CachedIssue>(predicate: #Predicate { cached in
+        let open = FetchDescriptor<CachedIssue>(predicate: #Predicate { cached in
             cached.repoOwner == owner && cached.repoName == name && cached.state == openRaw
         })
-        let rows = (try? context.fetch(descriptor)) ?? []
+        // Closed feedback accumulates without bound; narrow on the raw labels JSON in the store,
+        // then `isTask` makes the exact label match.
+        let taskLabel = LoveLetterLabels.task
+        let closed = FetchDescriptor<CachedIssue>(predicate: #Predicate { cached in
+            cached.repoOwner == owner && cached.repoName == name && cached.state != openRaw
+                && cached.labelsJSON?.contains(taskLabel) == true
+        })
+        let rows = ((try? context.fetch(open)) ?? []) + ((try? context.fetch(closed)) ?? []).filter(\.isTask)
         return rows.map { $0.toFeedbackIssue() }
     }
 
     /// Upserts fetched issues into the cache, preserving translation fields on existing rows.
-    /// On a full refresh (no `since`) we trust the response as the canonical OPEN snapshot
-    /// and prune stale OPEN rows that didn't appear. On incremental refresh we only mutate
+    /// On a full refresh (no `since`) we trust the response as the canonical snapshot of open
+    /// issues plus closed tasks, and prune stale rows that didn't appear. On incremental refresh we only mutate
     /// rows that came back — anything not in the response is unchanged on GitHub.
     private func mergeToCache(_ fetched: [FeedbackIssue], isFullRefresh: Bool) {
         guard let context = cacheContext else { return }
@@ -434,18 +472,24 @@ final class IssueLoader {
         for issue in fetched {
             if let row = byNumber[issue.number] {
                 row.updateFromRemote(issue)
-            } else if (issue.state ?? .open) == .open {
-                // Skip CLOSED issues we've never cached — not interesting to the app.
+            } else if (issue.state ?? .open) == .open || TaskItem.isTask(issue) {
+                // Skip closed feedback we've never cached — the app only shows closed tasks.
                 context.insert(CachedIssue.from(issue, repoOwner: owner, repoName: name))
             }
         }
 
         if isFullRefresh {
-            // Only OPEN states were requested; any cached OPEN row missing from the response
-            // was closed/deleted upstream. Mark them closed so translations aren't lost in case
-            // of reopen.
-            for row in existing where row.state == openRaw && !fetchedNumbers.contains(row.number) {
-                row.state = IssueState.closed.rawValue
+            // A full refresh is the canonical set of open issues plus closed tasks. A cached OPEN
+            // row missing from it was closed/deleted upstream: mark it closed (so translations
+            // survive a reopen, and a task just marked done keeps showing as done even if the
+            // closed-tasks query lags the close). A cached CLOSED task missing from it was deleted
+            // (or unlabelled) upstream: drop it, or it would linger as a done task forever.
+            for row in existing where !fetchedNumbers.contains(row.number) {
+                if row.state == openRaw {
+                    row.state = IssueState.closed.rawValue
+                } else if row.isTask {
+                    context.delete(row)
+                }
             }
         }
 
@@ -472,14 +516,18 @@ final class IssueLoader {
         return (try? context.fetch(descriptor))?.first
     }
 
-    private func readFetchState() -> (lastFetchedAt: Date?, etag: String?) {
+    private var syncVersionKey: String { "issueLoader.syncVersion.\(config.owner)/\(config.repo)" }
+
+    private func readFetchState() -> (lastFetchedAt: Date?, etag: String?, syncVersion: Int) {
         guard let context = cacheContext, let row = fetchStateRow(in: context) else {
-            return (nil, nil)
+            return (nil, nil, 0)
         }
-        return (row.lastFetchedAt, row.etag)
+        return (row.lastFetchedAt, row.etag, defaults.integer(forKey: syncVersionKey))
     }
 
-    private func persistFetchState(lastFetchedAt: Date, etag: String?) {
+    /// `completedFull` stamps the current `syncVersion`: only a full refresh fetches everything
+    /// that version covers.
+    private func persistFetchState(lastFetchedAt: Date, etag: String?, completedFull: Bool) {
         guard let context = cacheContext else { return }
         if let row = fetchStateRow(in: context) {
             row.lastFetchedAt = lastFetchedAt
@@ -493,5 +541,6 @@ final class IssueLoader {
             ))
         }
         try? context.save()
+        if completedFull { defaults.set(Self.syncVersion, forKey: syncVersionKey) }
     }
 }

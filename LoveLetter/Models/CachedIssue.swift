@@ -66,6 +66,11 @@ final class CachedIssue {
         self.labelsJSON = Self.encodeLabels(labels)
     }
 
+    /// Carries the task label — a GitHub issue tracked as a task rather than a feedback report.
+    var isTask: Bool {
+        Self.decodeLabels(labelsJSON).contains { $0.name == LoveLetterLabels.task }
+    }
+
     func toFeedbackIssue() -> FeedbackIssue {
         // Review date and territory live only in the stored body (no dedicated columns), so App
         // Store rows read them back from it; rows cached before the review-date fix hold the
@@ -83,9 +88,8 @@ final class CachedIssue {
             email: email,
             description: issueDescription,
             labels: Self.decodeLabels(labelsJSON),
-            // Carry state/updatedAt back out so the cache round-trip is lossless. The UI's
-            // cache path only ever loads OPEN rows, so this changes nothing there; the CLI
-            // reads every state and needs both fields to be truthful.
+            // Carry state/updatedAt back out so the cache round-trip is lossless. The UI loads
+            // closed tasks (shown as done) and the CLI reads every state; both need them truthful.
             updatedAt: updatedAt,
             state: IssueState(rawValue: state) ?? .open,
             milestoneTitle: milestoneTitle,
