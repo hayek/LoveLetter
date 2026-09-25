@@ -505,6 +505,9 @@ struct LoveLetterApp: App {
             CommandGroup(replacing: .appSettings) {
                 OpenSettingsCommand()
             }
+            CommandGroup(replacing: .help) {
+                HelpMenuCommand()
+            }
         }
         #endif
         #if os(macOS)
@@ -520,6 +523,10 @@ struct LoveLetterApp: App {
         }
         .defaultSize(width: 720, height: 620)
         .windowResizability(.contentMinSize)
+        Window("Love Letter Help", id: "help") {
+            LoveLetterHelpView()
+        }
+        .defaultSize(width: 640, height: 640)
         #endif
     }
 }

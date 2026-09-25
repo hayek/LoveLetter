@@ -108,6 +108,7 @@
 		2850E1C6655BD7256D4F333F /* QuickLookPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D057DF46F49EECBC0C7102C0 /* QuickLookPresenter.swift */; };
 		28630FD3E98D71E7569AAE90 /* ReleaseNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0D62629FFF62FDF7F0ACBB /* ReleaseNotificationService.swift */; };
 		28E84CF91062D70B9FA0E3CD /* SeenIssueStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFB2D2ED4B831E0A3EA1FF91 /* SeenIssueStoreTests.swift */; };
+		2995162B92699E1065729800 /* HelpView in Frameworks */ = {isa = PBXBuildFile; productRef = 46C54664F881C3EBD2661A0D /* HelpView */; };
 		2ADC4DDDB4688F3B64B20314 /* ComposeMailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C90B677F0FD5692D23FB674 /* ComposeMailViewModel.swift */; };
 		2B9D8F1ABB95A8184EA580DE /* ProductStoreTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0DCB17184B28D9B1F0F62F0 /* ProductStoreTestSupport.swift */; };
 		2C4C1564A7BD3647C529F7B0 /* SourceBadgeViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132C3A18A8143057535FEBC9 /* SourceBadgeViewTests.swift */; };
@@ -126,6 +127,7 @@
 		2FD886396BA853394C45387A /* NotificationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0507D0EA7A9CE33EADB76D36 /* NotificationServiceTests.swift */; };
 		2FF8C761FA4F3C483957FB09 /* MailToFeedbackMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C68A3223F8CAA6B97C7D0ED /* MailToFeedbackMirror.swift */; };
 		3041F88E3002C3DE0493A2E7 /* AppStoreReviewMirrorStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73049A3217521D43DE3E1F06 /* AppStoreReviewMirrorStoreTests.swift */; };
+		308C4172E03245D0ECC66EE3 /* app_help.json in Resources */ = {isa = PBXBuildFile; fileRef = 1E140FDF97BE20FC4BBB3E8A /* app_help.json */; };
 		30ACFB2EFCFD07BB58EC2F29 /* AppStoreConnectModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BAC63A5BB4E6D1B400E0C99 /* AppStoreConnectModels.swift */; };
 		30C76FB1BD854CB286235079 /* ReplyHeaderBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F22F38370229CFF0E5A20E5 /* ReplyHeaderBuilder.swift */; };
 		30CF9A9281C9DECB40C90C43 /* MailAccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3976AC47AACBBDE5997D08AF /* MailAccountStore.swift */; };
@@ -302,6 +304,7 @@
 		683D1CD8C5CB7ECE3148E840 /* NotificationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94190FC5E0A37327419769E0 /* NotificationSettings.swift */; };
 		687465BCC98023CD2C1D9718 /* FilterChipKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BD1FD04B922C4C7EA08D28 /* FilterChipKit.swift */; };
 		68E6B9DB772F59DC9AE7394A /* AppStoreReviewSynthesizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC193B6EB35ADD80CBAF78C7 /* AppStoreReviewSynthesizerTests.swift */; };
+		697822BB72A7971C52981F9A /* LoveLetterHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B986369F8F9DEC89820587 /* LoveLetterHelpView.swift */; };
 		69EAE717009088F628ECBD39 /* IOSMailDefaultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C332756B1B9EA12675791CD7 /* IOSMailDefaultsView.swift */; };
 		6A407AE2C5BD729E3FD66839 /* MockIntelligenceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309720B413F93E19D9FD3594 /* MockIntelligenceProvider.swift */; };
 		6A89C42A8A4DF167ED4B4CEE /* ProductStoreTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0DCB17184B28D9B1F0F62F0 /* ProductStoreTestSupport.swift */; };
@@ -409,6 +412,7 @@
 		9065CC45FC2584C013A3DDB6 /* TriageVerdictStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB262117C45D87B01EFD785A /* TriageVerdictStore.swift */; };
 		9122C86C3FF0710204ED5987 /* GitHubAccountStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9D8357F6CFDD572DCE32F0 /* GitHubAccountStore.swift */; };
 		91DB8F3B4B322490BFF9E13F /* ProductMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 254521886454C6D57D30BC87 /* ProductMigrationTests.swift */; };
+		92112D8CC45D59FD144850C8 /* app_help.json in Resources */ = {isa = PBXBuildFile; fileRef = 1E140FDF97BE20FC4BBB3E8A /* app_help.json */; };
 		9253FC732D8472D9D4F043D4 /* ReleaseRecipientCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E2DA88C556A1863371E7145 /* ReleaseRecipientCalculator.swift */; };
 		92D365F8F8A4B4DF89247526 /* MailDefaultsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2584695E85D6EA99D983C9CA /* MailDefaultsSection.swift */; };
 		92FBCE0FF5D3709D08630BA4 /* FeedbackTaskRefParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E08F14D5DB6CAD4DFAB2F65C /* FeedbackTaskRefParserTests.swift */; };
@@ -611,6 +615,7 @@
 		D897E0E390E99F4CC4E1C0EB /* IssueBodyParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C15031A976BD04BCE32BBCC /* IssueBodyParser.swift */; };
 		D9531F7D71F71E1D4FA0AC20 /* OSVersionFormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D3D10095A51AC0C2886795 /* OSVersionFormatTests.swift */; };
 		D9F36B9249BD33FDF3646375 /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83670E6983479EEFE64C819E /* TaskItem.swift */; };
+		D9F63BDAE8B2BF6EE286C653 /* HelpView in Frameworks */ = {isa = PBXBuildFile; productRef = 4CC3CB1477AF6430ED0C2D80 /* HelpView */; };
 		DA3985786B1BEA040C11A593 /* IMAPSyntheticIDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F02B061710BB7C256E1D8D4 /* IMAPSyntheticIDTests.swift */; };
 		DABED656D5D622FC1493F57E /* FeedbackQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C22DD5D69A1995E0158BF76 /* FeedbackQueryTests.swift */; };
 		DAD2E8E863CFD61CEA1FE3E0 /* iOSBackgroundRefreshDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9104561ED5434E0186BC134A /* iOSBackgroundRefreshDriver.swift */; };
@@ -657,6 +662,7 @@
 		E98F06411CBDC34FFF890F73 /* CloudSyncStatusRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1F197825D55497F4D30688 /* CloudSyncStatusRow.swift */; };
 		E9BA565A37AD3445CC9FF048 /* ReplyTemplateEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0403490ABED774574053BB9B /* ReplyTemplateEditorView.swift */; };
 		EA28248C6610FB80CAC25E04 /* IssueTranslation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 325664E91EFCF2A632531FD2 /* IssueTranslation.swift */; };
+		EA7A1680329809CAAB5295CC /* LoveLetterHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B986369F8F9DEC89820587 /* LoveLetterHelpView.swift */; };
 		EABA1D85A264908CF79D0F82 /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCC85EC935E33D5CB569A9C5 /* MockURLProtocol.swift */; };
 		EABC62552F6592409EC9D4F3 /* ReplyTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19DFDE5847E6C8FB862129D9 /* ReplyTemplate.swift */; };
 		EAE5BB70680E25F737136C37 /* SourceStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14EB88C44F951E088F1177D3 /* SourceStatus.swift */; };
@@ -793,6 +799,7 @@
 		1C90B677F0FD5692D23FB674 /* ComposeMailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeMailViewModel.swift; sourceTree = "<group>"; };
 		1CC9496D2A712BE0F6230BE2 /* CachedIssue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedIssue.swift; sourceTree = "<group>"; };
 		1CFA9634619C1B5962CBC9FF /* LegacyRepo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyRepo.swift; sourceTree = "<group>"; };
+		1E140FDF97BE20FC4BBB3E8A /* app_help.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = app_help.json; sourceTree = "<group>"; };
 		1E19E58F44C0D56B0A8D2BAC /* ProjectInspectorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectInspectorPanel.swift; sourceTree = "<group>"; };
 		1E489B7B87848E4899BB752F /* ReplyTemplatePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyTemplatePickerView.swift; sourceTree = "<group>"; };
 		1F75B045EC137938B15EA9B9 /* TriageSuggestionChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageSuggestionChip.swift; sourceTree = "<group>"; };
@@ -847,6 +854,7 @@
 		3F22F38370229CFF0E5A20E5 /* ReplyHeaderBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyHeaderBuilder.swift; sourceTree = "<group>"; };
 		41B901C21FC1FD1DEF64A682 /* MailSyncCoordinatorRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSyncCoordinatorRegistry.swift; sourceTree = "<group>"; };
 		424FAA6F87774BFF7E114857 /* UpdatesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdatesSettingsView.swift; sourceTree = "<group>"; };
+		44B986369F8F9DEC89820587 /* LoveLetterHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoveLetterHelpView.swift; sourceTree = "<group>"; };
 		44F13396912C3453FC0EA1F3 /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
 		45335B291F9431738BE3BD57 /* EmailAccountList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountList.swift; sourceTree = "<group>"; };
 		47821C38BAF746874119A040 /* CloudSyncStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncStatusTests.swift; sourceTree = "<group>"; };
@@ -1111,6 +1119,7 @@
 			files = (
 				51340A4940C5208C0E3025B0 /* SwiftMail in Frameworks */,
 				B16AB0FEA1408FB59B5087C5 /* LoveLetterCore in Frameworks */,
+				D9F63BDAE8B2BF6EE286C653 /* HelpView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1121,12 +1130,21 @@
 				FB1C3EA11689A8866643F9B8 /* SwiftMail in Frameworks */,
 				A2CF2CBA79DCEA2750BDFE5E /* LoveLetterCore in Frameworks */,
 				8EC9FECAF0A12252ED7FEC2A /* AppUpdater in Frameworks */,
+				2995162B92699E1065729800 /* HelpView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0641791D87CE02110A3135AC /* Help */ = {
+			isa = PBXGroup;
+			children = (
+				44B986369F8F9DEC89820587 /* LoveLetterHelpView.swift */,
+			);
+			path = Help;
+			sourceTree = "<group>";
+		};
 		0B65942BB8E69B47CA25B2F4 /* Fakes */ = {
 			isa = PBXGroup;
 			children = (
@@ -1169,6 +1187,7 @@
 			children = (
 				26C5BA90AC1F05AAEB768963 /* Activity */,
 				197BAF006B744AD88CD74E00 /* Filters */,
+				0641791D87CE02110A3135AC /* Help */,
 				8A0846612B1C10188BD974B6 /* Inspector */,
 				A5CDA12CD478DD71D432172B /* Issues */,
 				FD5A165A028FC390F3AE323A /* Mail */,
@@ -1185,6 +1204,14 @@
 				675ADF55C84DC069538F20A3 /* ActivityWindow.swift */,
 			);
 			path = Activity;
+			sourceTree = "<group>";
+		};
+		27CBB80209DB529DE08C83D7 /* Help */ = {
+			isa = PBXGroup;
+			children = (
+				1E140FDF97BE20FC4BBB3E8A /* app_help.json */,
+			);
+			path = Help;
 			sourceTree = "<group>";
 		};
 		3A19797D8BDA1A9A94A43DA7 /* AddProduct */ = {
@@ -1429,6 +1456,7 @@
 		77AAE26416C60DC07895E2ED /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				27CBB80209DB529DE08C83D7 /* Help */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -1788,6 +1816,7 @@
 			packageProductDependencies = (
 				85771FEC77EB9536F2042030 /* SwiftMail */,
 				BDBAC01BA70D2DD6D80D0B23 /* LoveLetterCore */,
+				4CC3CB1477AF6430ED0C2D80 /* HelpView */,
 			);
 			productName = LoveLetter_iOS;
 			productReference = E048D84BA9F4E27702DD237C /* LoveLetter.app */;
@@ -1828,6 +1857,7 @@
 				E0A6959D920045F73B48AF03 /* SwiftMail */,
 				4D417F5255FC364D5274F43C /* LoveLetterCore */,
 				946BB464C5F0B9945AE2E343 /* AppUpdater */,
+				46C54664F881C3EBD2661A0D /* HelpView */,
 			);
 			productName = LoveLetter_macOS;
 			productReference = 00F68CD673B2332398A07C25 /* LoveLetter.app */;
@@ -1881,6 +1911,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				9F88BA226A989B4CB4D9A18A /* XCRemoteSwiftPackageReference "AppUpdater" */,
+				7DF94C91D1CD54F6D5F768FB /* XCRemoteSwiftPackageReference "HelpView" */,
 				6F1B06412FC243734B7E1380 /* XCRemoteSwiftPackageReference "SwiftMail" */,
 				0341FB94293FF04F43E14A0B /* XCLocalSwiftPackageReference "../LoveLetterSDK" */,
 			);
@@ -1907,6 +1938,7 @@
 				706BF8AA21BCA844206A3899 /* AppIcon.icon in Resources */,
 				94915DB158B23576A9842318 /* AppleDevices.json in Resources */,
 				CEE69EEBBBA572F398AA46B6 /* Skill in Resources */,
+				308C4172E03245D0ECC66EE3 /* app_help.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1917,6 +1949,7 @@
 				B5908DE5F7C499E3E9B4A4D8 /* AppIcon.icon in Resources */,
 				4895B904ABBCBE5D943AA85E /* AppleDevices.json in Resources */,
 				F86A2C6D676341ECBA1F27CE /* Skill in Resources */,
+				92112D8CC45D59FD144850C8 /* app_help.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2314,6 +2347,7 @@
 				4447141BC27602E0112168FD /* LanguageDetector.swift in Sources */,
 				E246B5F8832B790362835ADB /* LegacyRepo.swift in Sources */,
 				BE602093DE99CC6F623DB88F /* LoveLetterApp.swift in Sources */,
+				EA7A1680329809CAAB5295CC /* LoveLetterHelpView.swift in Sources */,
 				C1955D8E24530E88638FC923 /* LoveLetterMain.swift in Sources */,
 				AF82742AD221176D43BB3192 /* MailAccount.swift in Sources */,
 				568B813F44303D658C416699 /* MailAccountLocalState.swift in Sources */,
@@ -2543,6 +2577,7 @@
 				F53D761803FE8DABA03AE53A /* LanguageDetector.swift in Sources */,
 				4D048B6BEBCBE4284BE094CA /* LegacyRepo.swift in Sources */,
 				15C28CE1796559FBBEAB5DF0 /* LoveLetterApp.swift in Sources */,
+				697822BB72A7971C52981F9A /* LoveLetterHelpView.swift in Sources */,
 				6817A3A012ADA57805420696 /* LoveLetterMain.swift in Sources */,
 				36BE3DC9DE8EF0586FFAA8CC /* MailAccount.swift in Sources */,
 				11D4656354922CC6FC2A6DF2 /* MailAccountLocalState.swift in Sources */,
@@ -3164,6 +3199,14 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		7DF94C91D1CD54F6D5F768FB /* XCRemoteSwiftPackageReference "HelpView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hayek/HelpView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.4.1;
+			};
+		};
 		9F88BA226A989B4CB4D9A18A /* XCRemoteSwiftPackageReference "AppUpdater" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/s1ntoneli/AppUpdater";
@@ -3175,6 +3218,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		46C54664F881C3EBD2661A0D /* HelpView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DF94C91D1CD54F6D5F768FB /* XCRemoteSwiftPackageReference "HelpView" */;
+			productName = HelpView;
+		};
+		4CC3CB1477AF6430ED0C2D80 /* HelpView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7DF94C91D1CD54F6D5F768FB /* XCRemoteSwiftPackageReference "HelpView" */;
+			productName = HelpView;
+		};
 		4D417F5255FC364D5274F43C /* LoveLetterCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LoveLetterCore;

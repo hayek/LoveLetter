@@ -1,0 +1,285 @@
+{
+  "topics": [
+    "General",
+    "Getting Started",
+    "Feedback Sources",
+    "Replying to Users",
+    "Tasks and Releases",
+    "Intelligence",
+    "Sync and Privacy",
+    "Command Line and AI",
+    "Troubleshooting"
+  ],
+  "faqs": [
+    {
+      "key": "what-is-love-letter",
+      "title": "What is Love Letter?",
+      "details": "Love Letter is one inbox for all the feedback about your apps. Bug reports and feature requests sent from inside your app, **App Store reviews**, and **support emails** all arrive in one place. From there you can reply to people, turn feedback into tasks, plan versions, and tell the people who asked when their fix ships.",
+      "topic": "General"
+    },
+    {
+      "key": "where-is-feedback-stored",
+      "title": "Where is my feedback stored?",
+      "details": "Every product is backed by a **GitHub repository**, and each piece of feedback is a GitHub issue in that repository. This is true whether it came from the in-app SDK, an App Store review, or an email. Tasks are issues too, and versions are GitHub milestones.\n\nYour data is never locked inside Love Letter. You can open any item on GitHub, and your feedback stays there even if you stop using the app.",
+      "topic": "General"
+    },
+    {
+      "key": "what-is-a-product",
+      "title": "What is a product?",
+      "details": "A product is one of your apps. It's connected to one GitHub repository, and you can add up to three feedback sources to it:\n\n- **In-App Feedback** from the Love Letter SDK\n- **App Store Reviews**\n- **Email**\n\nIf two products use the same repository, they show the same feedback.",
+      "topic": "General"
+    },
+    {
+      "key": "which-platforms",
+      "title": "Which devices does Love Letter run on?",
+      "details": "Love Letter runs on **Mac**, **iPhone**, and **iPad**. Your products, mail accounts, templates, and read status sync between your devices through iCloud.\n\nA few features are Mac only: the `loveletter` command-line tool, the AI skill, and automatic updates for the website download.",
+      "topic": "General"
+    },
+    {
+      "key": "is-there-a-cost",
+      "title": "Do I need a paid GitHub account?",
+      "details": "No. A free GitHub account works, including for private repositories. Love Letter uses the standard GitHub API to read and write issues, labels, milestones, and releases in the repositories you choose.",
+      "topic": "General"
+    },
+    {
+      "key": "add-a-product",
+      "title": "How do I add a product?",
+      "details": "Open **Settings** and click **+** next to Products. On iPhone, tap **Add Product**. You can also start from the sidebar. The wizard walks you through these steps:\n\n1. **Repository**: pick an existing GitHub repository or create a new one.\n2. **In-App Feedback**: set up the SDK in your app.\n3. **App Store Reviews**: connect an App Store Connect API key.\n4. **Email**: connect a support inbox.\n5. **Review**: name the product and choose a color.\n\nYou can skip steps 2 to 4 and set them up later in the product's settings.",
+      "topic": "Getting Started"
+    },
+    {
+      "key": "connect-github",
+      "title": "How do I connect my GitHub account?",
+      "details": "In the Repository step, choose **Sign in with GitHub**. Love Letter shows a short code. Click **Open GitHub**, paste the code, and approve access. You don't have to enter a password in the app, and Love Letter never sees your GitHub password.\n\nThe app asks for the `repo` permission so it can read and write issues in private repositories. You can connect more than one GitHub account, which is useful if your apps are spread across personal and organization accounts.",
+      "topic": "Getting Started"
+    },
+    {
+      "key": "use-a-token",
+      "title": "Can I use a personal access token instead?",
+      "details": "Yes. In the Repository step, choose **Enter Manually** and enter the owner, the repository name, and a token. The token needs **read and write access to the repository's issues**. It's stored in your Keychain.",
+      "topic": "Getting Started"
+    },
+    {
+      "key": "create-feedback-repo",
+      "title": "Should I create a separate repository for feedback?",
+      "details": "It's usually a good idea. In the Repository step, choose **New** and pick an owner and a name, such as `myapp-feedback`. Love Letter creates the repository and adds the `bug`, `feature-request`, and `user-submitted` labels.\n\nKeep the repository **private**. Feedback often includes people's email addresses and personal details.",
+      "topic": "Getting Started"
+    },
+    {
+      "key": "integrate-sdk",
+      "title": "How do I add in-app feedback to my app?",
+      "details": "Add the **Love Letter SDK** to your app. It gives users a feedback screen, and each report is filed as a GitHub issue in your product's repository. SDKs are available for Apple platforms (iOS, iPadOS, macOS, watchOS, tvOS, and visionOS), **Android**, and the **web**.\n\nThe quickest way to set it up is to click **Copy Setup Prompt** in the wizard and paste it into an AI coding agent such as Claude Code, Codex, or Cursor. The agent installs the SDK, sets up credentials, and sends a test report. The full guide is at [hayek.github.io/loveletter-docs](https://hayek.github.io/loveletter-docs/).",
+      "topic": "Getting Started"
+    },
+    {
+      "key": "sdk-token-safety",
+      "title": "Is it safe to ship a GitHub token inside my app?",
+      "details": "The SDK has two ways to send feedback:\n\n- **Direct**: the app holds a GitHub token and files issues itself. It's the simplest option, but someone could extract the token from your app.\n- **Relay**: your own small server holds the token, and the app sends feedback to that server. This is recommended for public apps and required on the web.\n\nIf you use Direct, use a fine-grained token that can only access the feedback repository and only issues.",
+      "topic": "Getting Started"
+    },
+    {
+      "key": "app-store-keys",
+      "title": "How do I connect App Store reviews?",
+      "details": "In the product's settings, turn on **App Store Reviews**. You'll need an App Store Connect API key:\n\n1. In App Store Connect, go to **Users and Access → Integrations → App Store Connect API**. If this is the first key, the Account Holder must click **Request Access**.\n2. Create a key with the **Admin** or **Customer Support** role. Either role can read reviews and post responses.\n3. Copy the **Issuer ID** and the **Key ID**, then download the **.p8** key file. You can only download it once.\n4. In Love Letter, enter the IDs, import the .p8 file, click **Verify Key & Load Apps**, and pick your app.\n\nThe key is stored in your Keychain and is never uploaded to GitHub.",
+      "topic": "Feedback Sources"
+    },
+    {
+      "key": "app-store-review-sync",
+      "title": "How are App Store reviews kept up to date?",
+      "details": "New reviews are checked regularly, and each one becomes a feedback item. About once a day, Love Letter also scans all reviews again:\n\n- When someone **edits** a review, the item is updated with a note.\n- When a review is **deleted**, the item is closed and labeled `review-deleted`.",
+      "topic": "Feedback Sources"
+    },
+    {
+      "key": "respond-to-reviews",
+      "title": "Can I respond to App Store reviews?",
+      "details": "Yes. Open the review and use the **Respond on App Store** panel to write, update, or delete your public developer response. Responses can be up to 5,970 characters. Each response is also saved as a comment on the GitHub issue, so you have a record of it.\n\nIf editing is disabled, your API key probably has a read-only role. Create a new key with the **Admin** or **Customer Support** role.",
+      "topic": "Feedback Sources"
+    },
+    {
+      "key": "connect-email",
+      "title": "How do I connect a support inbox?",
+      "details": "In the product's settings, turn on **Email** and choose your provider: **Gmail**, **iCloud**, **Outlook**, or **Custom** for any other IMAP and SMTP server. Enter your email address and an **app password**, then click **Test Connection**.\n\nEvery new email to that inbox becomes a feedback item. Replies in the same thread are added to it as comments. Bounces and automatic replies are ignored.",
+      "topic": "Feedback Sources"
+    },
+    {
+      "key": "app-password",
+      "title": "Why do I need an app password?",
+      "details": "Gmail, iCloud, and Outlook don't allow other apps to sign in with your normal password. Instead, you create an **app-specific password** in your account's security settings:\n\n- **Gmail**: Google Account → Security → App passwords. Two-step verification must be on.\n- **iCloud**: account.apple.com → Sign-In and Security → App-Specific Passwords.\n- **Outlook**: Microsoft account → Security → Advanced security options → App passwords.\n\nPaste it into Love Letter. Spaces are removed for you. The password is stored in your Keychain.",
+      "topic": "Feedback Sources"
+    },
+    {
+      "key": "remove-source",
+      "title": "What happens if I remove a source?",
+      "details": "Love Letter stops checking that source and deletes its saved credentials from your devices. **Feedback that's already in the repository stays there**.",
+      "topic": "Feedback Sources"
+    },
+    {
+      "key": "sdk-source",
+      "title": "Why can't I turn off In-App Feedback?",
+      "details": "In-App Feedback doesn't need a connection. It shows every SDK report filed in the product's repository. To stop receiving these reports, remove the SDK from your app or change the repository it sends to.",
+      "topic": "Feedback Sources"
+    },
+    {
+      "key": "reply-by-email",
+      "title": "How do I reply to someone?",
+      "details": "When feedback includes an email address, click **Reply to** followed by their address on the feedback item, and write your answer right there. Press **⌘↩** to send. Your reply goes into the same email thread as the original feedback, so the person sees one conversation.\n\nYou can reply from any mail account you've added in **Settings → Email**.",
+      "topic": "Replying to Users"
+    },
+    {
+      "key": "reply-templates",
+      "title": "Can I save replies I send often?",
+      "details": "Yes. Create **reply templates** for answers you send often, then choose **Reply with template…** on a feedback item. Templates can include placeholders such as `{{sender_name}}`, `{{app_name}}`, and `{{issue_url}}`, which are filled in when you reply.\n\nOn Mac, you can also set a default subject, header, and footer in **Settings → Email**. They're added to every reply.",
+      "topic": "Replying to Users"
+    },
+    {
+      "key": "sent-folder",
+      "title": "Will my replies show up in my Sent folder?",
+      "details": "Yes. Gmail and Outlook save sent mail on their own. iCloud and most custom mail servers don't, so Love Letter adds each reply to your **Sent** folder for you.",
+      "topic": "Replying to Users"
+    },
+    {
+      "key": "mirror-emails",
+      "title": "Can the email conversation be saved on GitHub?",
+      "details": "Yes. With **Mirror emails to issue comments** turned on in the product's settings, every email you receive or send is also added as a comment on the feedback's GitHub issue. The whole conversation is then saved in the repository. This setting is on by default.",
+      "topic": "Replying to Users"
+    },
+    {
+      "key": "redact-emails",
+      "title": "Can I hide people's email addresses?",
+      "details": "Yes. Turn on **Redact sender email addresses** in the product's settings. Addresses then appear shortened, like `a***@example.com`, on GitHub. This setting is on by default and is recommended if your repository is shared with other people.",
+      "topic": "Replying to Users"
+    },
+    {
+      "key": "what-are-tasks",
+      "title": "What are tasks?",
+      "details": "Tasks track the work that comes out of feedback. Each task is a GitHub issue labeled `appfeedback:task`, with a **status** (To Do, In Progress, or Done) and a **priority** (Low, Med, or High).\n\nTo see your tasks and versions, open the **Tasks & Versions** panel from the toolbar. To create a task, click **New Task**.",
+      "topic": "Tasks and Releases"
+    },
+    {
+      "key": "link-feedback-to-task",
+      "title": "How do I link feedback to a task?",
+      "details": "Drag a task onto a feedback item. A task can cover several feedback items, and one feedback item can be linked to several tasks. The links are saved in the task's GitHub issue, so GitHub also shows them on each linked feedback issue.\n\nWhen you release a version, these links decide who gets told about it.",
+      "topic": "Tasks and Releases"
+    },
+    {
+      "key": "done-tasks",
+      "title": "What happens when I mark a task as done?",
+      "details": "The task's GitHub issue is closed. The task stays in your list as **Done**, below your open tasks. If you change its status back, the issue is reopened.\n\nWhen you **delete** a task, its GitHub issue is permanently deleted. You can't undo this.",
+      "topic": "Tasks and Releases"
+    },
+    {
+      "key": "what-are-versions",
+      "title": "What are versions?",
+      "details": "A version is an upcoming release of your app, such as `1.2.0`. Each version is a GitHub milestone. Add tasks to a version to plan what goes into it, and give the version a release title and a changelog.",
+      "topic": "Tasks and Releases"
+    },
+    {
+      "key": "release-a-version",
+      "title": "What happens when I release a version?",
+      "details": "Love Letter closes the milestone and publishes a **GitHub Release** tagged `v<version>`, using your changelog. If your source code is in a different repository, set it as the **connected code repo** on the version or the product, and the release is published there.\n\nIf you have a mail account set up, Love Letter also offers to email everyone whose feedback is linked to a **Done** task in that version. You can review the recipient list, preview the message, and then click **Send & Release**. Each email goes into that person's original conversation. To release without emailing anyone, choose **Mark released (no email)**.",
+      "topic": "Tasks and Releases"
+    },
+    {
+      "key": "release-email-template",
+      "title": "Can I change the release email?",
+      "details": "Yes. When you release, the recipients sheet shows the email's subject and message, and you can edit both before you send. The message is a template with the placeholders `{appName}`, `{version}`, `{whatsNew}` (your changelog), and `{theirFeedbacks}` (the feedback each person sent). The default subject is \"{appName} {version} is out\".",
+      "topic": "Tasks and Releases"
+    },
+    {
+      "key": "summaries",
+      "title": "What does Summarize do?",
+      "details": "**Summarize** uses Apple Intelligence to write a short overview of your unread feedback from the last 30 days. It runs entirely on your device.\n\nIt requires Apple Intelligence to be turned on in System Settings and a Mac, iPhone, or iPad that supports it. If the model is still downloading, try again in a few minutes.",
+      "topic": "Intelligence"
+    },
+    {
+      "key": "summary-failed",
+      "title": "Why does a summary sometimes fail?",
+      "details": "Apple Intelligence's built-in safety filter sometimes blocks harmless text. For example, a bug report that quotes an error message or describes a crash in strong words can trigger it. If this happens, open the feedback items and read them directly. The filter is part of Apple's model, and Love Letter can't turn it off.",
+      "topic": "Intelligence"
+    },
+    {
+      "key": "translation",
+      "title": "Can Love Letter translate feedback?",
+      "details": "Yes. Feedback in another language can be translated with Apple's built-in translation. It works on your device and **doesn't require Apple Intelligence**. Each language downloads the first time you use it. On Mac, you can choose the target language, or turn translation off, in **Settings → Intelligence**.",
+      "topic": "Intelligence"
+    },
+    {
+      "key": "triage",
+      "title": "What is Feedback Triage?",
+      "details": "Triage uses Apple Intelligence to suggest which task new feedback belongs to, or whether it needs a new task. You can choose how much it does automatically:\n\n- **Off** (the default)\n- **Suggest only**\n- **Auto-assign, confirm new tasks**\n- **Fully automatic**\n\nThe first time you turn it on, feedback you already have is left alone, and only new feedback is triaged. The analysis runs on your device. Nothing is sent anywhere until a task is actually created or assigned.",
+      "topic": "Intelligence"
+    },
+    {
+      "key": "icloud-sync",
+      "title": "How do my devices stay in sync?",
+      "details": "Love Letter uses your **private iCloud database** to sync products, mail accounts, templates, versions, translations, summaries, and read status. Feedback and tasks themselves are stored on GitHub, and each device downloads them from there.\n\nIf nothing is syncing, make sure you're signed in to iCloud on each device and that iCloud is allowed for Love Letter.",
+      "topic": "Sync and Privacy"
+    },
+    {
+      "key": "credentials-storage",
+      "title": "Where are my passwords and keys stored?",
+      "details": "GitHub tokens, email passwords, and App Store Connect keys are stored in your **Keychain**. They sync to your other devices through iCloud Keychain, so you only need to enter them once. They're never uploaded to GitHub or to the developer of Love Letter.",
+      "topic": "Sync and Privacy"
+    },
+    {
+      "key": "what-leaves-device",
+      "title": "What data leaves my device?",
+      "details": "Love Letter only connects to services you set up:\n\n- **GitHub**, to read and write issues, milestones, and releases\n- **App Store Connect**, to read reviews and post responses\n- **Your mail provider**, to read and send email\n- **iCloud**, to sync your settings and credentials between your devices\n\nSummaries, triage, and translation run on your device. Love Letter has no server of its own and doesn't collect analytics about you or your users.",
+      "topic": "Sync and Privacy"
+    },
+    {
+      "key": "notifications",
+      "title": "Can I get notified about new feedback?",
+      "details": "Yes. Turn on **Notify me about new feedback** in **Settings → Notifications**. Love Letter checks for new feedback in the background and notifies you when something arrives. On iPhone and iPad, iOS decides how often background checks run.",
+      "topic": "Sync and Privacy"
+    },
+    {
+      "key": "refresh-frequency",
+      "title": "How often does Love Letter check for new feedback?",
+      "details": "While the app is open, it checks GitHub every 15 minutes and does a full refresh once a day. On Mac, you can choose how often it checks email, from every minute to every hour, in **Settings → Email**. The default is every 5 minutes.",
+      "topic": "Sync and Privacy"
+    },
+    {
+      "key": "install-cli",
+      "title": "How do I install the loveletter command?",
+      "details": "On Mac, go to **Settings → CLI & AI Skill** and click **Install Command Line Tool**. This adds a `loveletter` command to `/usr/local/bin` or `~/.local/bin`, whichever one you can write to. If that folder isn't on your `PATH`, the pane shows a note about it.\n\nThe command runs the Love Letter app itself, so it's always the same version as the app. If you move the app, the command is fixed the next time you open it.",
+      "topic": "Command Line and AI"
+    },
+    {
+      "key": "cli-usage",
+      "title": "What can the command-line tool do?",
+      "details": "Almost everything the app can do: list and read feedback, mark it as read, manage tasks and versions, reply to people, respond to reviews, and add or change products. Output is JSON by default, or plain text with `--text`.\n\n- **Reading** works even when the app isn't running.\n- **Changes** are sent to the running app, so **Love Letter must be open**.\n- Actions that delete something or send something to other people require `--yes`.\n\nYou can't sign in to GitHub or change app-wide settings from the command line.",
+      "topic": "Command Line and AI"
+    },
+    {
+      "key": "ai-skill",
+      "title": "How do I let an AI agent work with my feedback?",
+      "details": "In **Settings → CLI & AI Skill**, click **Install for Claude Code**. This installs the Love Letter skill, so Claude Code can answer questions like \"What are users reporting about the new release?\" or \"Is this bug already tracked?\", and can create tasks or reply to people for you.\n\nFor other AI tools, click **Show in Finder** and copy the skill folder to where that tool looks for skills. The skill uses the `loveletter` command, so install that too.",
+      "topic": "Command Line and AI"
+    },
+    {
+      "key": "cli-locked",
+      "title": "Why does the command fail when my Mac is locked?",
+      "details": "Your GitHub token and passwords are stored in your Keychain, which can't be read while your Mac's screen is locked. Unlock your Mac and try again.",
+      "topic": "Command Line and AI"
+    },
+    {
+      "key": "feedback-missing",
+      "title": "Why don't I see new feedback?",
+      "details": "Try these steps:\n\n1. On iPhone or iPad, pull down on the feedback list to refresh it. On Mac, Love Letter checks again when you switch back to the app.\n2. Make sure the GitHub account you connected can still access the repository.\n3. For email, click **Test Connection** in the product's settings. Many sign-in errors come from a revoked or expired app password.\n4. For App Store reviews, check the **Last sync** time and any error in the product's settings. Reviews can take a while to appear in Apple's API.\n\nClosed feedback is hidden. Look for the issue on GitHub if you think one was closed.",
+      "topic": "Troubleshooting"
+    },
+    {
+      "key": "activity-window",
+      "title": "How can I see what Love Letter is doing in the background?",
+      "details": "On Mac, choose **Window → Activity** or press **⌥⌘0**. The Activity window lists recent GitHub fetches, sent emails, connection tests, and App Store requests, and shows whether each one succeeded. You can filter the list by Fetches, Emails, or App Store.",
+      "topic": "Troubleshooting"
+    },
+    {
+      "key": "updates",
+      "title": "How do I update Love Letter?",
+      "details": "If you installed it from the **App Store**, updates come through the App Store.\n\nIf you downloaded it from the **website**, Love Letter checks for updates when it opens and once a day. It downloads new versions in the background and asks before restarting. You can also choose **Love Letter → Check for Updates…**, or turn off automatic checks in **Settings → Updates**.",
+      "topic": "Troubleshooting"
+    }
+  ]
+}

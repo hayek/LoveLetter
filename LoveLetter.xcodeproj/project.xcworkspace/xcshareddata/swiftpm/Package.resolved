@@ -1,5 +1,5 @@
 {
-  "originHash" : "e0f37e7f82dbef363aa19363e672b483fdf24e06d6afab54d5297133311f403c",
+  "originHash" : "a2f619c13c8cc2dc898faac3c2d416be1d7127e0c926a5b64aa1c21c020fb4fb",
   "pins" : [
     {
       "identity" : "appupdater",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "1991264a4045dd974217f4ca321a2480db9092d3",
         "version" : "0.2.0"
+      }
+    },
+    {
+      "identity" : "helpview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/hayek/HelpView",
+      "state" : {
+        "revision" : "40dc04153dfccbf59a1f4871666e9ec500898503",
+        "version" : "1.4.1"
       }
     },
     {

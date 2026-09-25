@@ -19,6 +19,10 @@ packages:
   AppUpdater:
     url: https://github.com/s1ntoneli/AppUpdater
     from: 0.2.0
+  # FAQ / Help screen with Apple Intelligence search — same as Usage for Claude.
+  HelpView:
+    url: https://github.com/hayek/HelpView
+    from: 1.4.1
 
 targets:
   LoveLetter:
@@ -45,6 +49,8 @@ targets:
       - package: AppUpdater
         product: AppUpdater
         platforms: [macOS]
+      - package: HelpView
+        product: HelpView
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amirhayek.AppFeedback

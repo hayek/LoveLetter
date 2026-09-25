@@ -13,6 +13,7 @@ enum SettingsSelection: Hashable {
     case cli
     /// Direct-download build only (see `DistributionFlavor`).
     case updates
+    case help
     /// DEBUG-only pane; the row and detail are fenced, the case itself is harmless in Release.
     case debug
 
@@ -126,6 +127,8 @@ struct SettingsView: View {
                         SettingsIconRow(title: "Updates", systemImage: "arrow.down.circle.fill", tileColor: .green)
                             .tag(SettingsSelection.updates)
                     }
+                    SettingsIconRow(title: "Help & FAQ", systemImage: "questionmark.circle.fill", tileColor: .blue)
+                        .tag(SettingsSelection.help)
                 }
                 #if DEBUG
                 if !ScreenshotMode.isActive {
@@ -192,6 +195,8 @@ struct SettingsView: View {
             if let appUpdateController {
                 UpdatesSettingsView(updates: appUpdateController)
             }
+        case .help:
+            LoveLetterHelpView()
         case .debug:
             #if DEBUG
             DebugSettingsView()
@@ -268,6 +273,14 @@ struct SettingsView: View {
                         } label: {
                             Label("Notifications", systemImage: "bell")
                         }
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        LoveLetterHelpView()
+                    } label: {
+                        Label("Help & FAQ", systemImage: "questionmark.circle")
                     }
                 }
 
